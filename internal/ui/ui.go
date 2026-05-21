@@ -193,6 +193,66 @@ func RenderDoctor(w io.Writer, checks []DoctorCheck) {
 	renderDoctorSummary(w, t, checks)
 }
 
+type DedashChange struct {
+	Path         string
+	Replacements int
+}
+
+type DedashSummary struct {
+	Scanned           int
+	Modified          int
+	Skipped           int
+	TotalReplacements int
+	Changes           []DedashChange
+	DryRun            bool
+}
+
+func RenderDedash(w io.Writer, summary DedashSummary) {
+	t := NewTheme(w)
+	line := dedashSummaryLine(summary)
+
+	switch {
+	case !t.enabled:
+		fmt.Fprintln(w, line)
+	case summary.Modified > 0 && !summary.DryRun:
+		fmt.Fprintln(w, t.ok.Render(line))
+	case summary.DryRun:
+		fmt.Fprintln(w, t.muted.Render(line))
+	default:
+		fmt.Fprintln(w, t.muted.Render(line))
+	}
+
+	for _, change := range summary.Changes {
+		if t.enabled {
+			fmt.Fprintf(w, "  %s %s\n",
+				t.command.Render(change.Path),
+				t.muted.Render(fmt.Sprintf("(%d)", change.Replacements)),
+			)
+			continue
+		}
+		fmt.Fprintf(w, "  %s (%d)\n", change.Path, change.Replacements)
+	}
+}
+
+func dedashSummaryLine(summary DedashSummary) string {
+	skipped := ""
+	if summary.Skipped > 0 {
+		skipped = fmt.Sprintf(", skipped %d", summary.Skipped)
+	}
+
+	if summary.Modified == 0 {
+		return fmt.Sprintf("scanned %d files%s, no em-dashes found", summary.Scanned, skipped)
+	}
+
+	if summary.DryRun {
+		return fmt.Sprintf("dry-run: scanned %d files%s, would modify %d (%d replacements)",
+			summary.Scanned, skipped, summary.Modified, summary.TotalReplacements)
+	}
+
+	return fmt.Sprintf("scanned %d files%s, modified %d (%d replacements)",
+		summary.Scanned, skipped, summary.Modified, summary.TotalReplacements)
+}
+
 func renderDoctorSummary(w io.Writer, t Theme, checks []DoctorCheck) {
 	failures := 0
 	for _, check := range checks {
