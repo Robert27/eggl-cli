@@ -12,8 +12,14 @@ Makefile          # build, install, test
 ## Development
 
 ```bash
-make test
+make fmt && make check   # required before committing
 make build VERSION=v0.2.0
+```
+
+Enable the git pre-commit hook (runs `make check` on each commit):
+
+```bash
+make hooks
 ```
 
 ## Adding a new command
@@ -38,7 +44,7 @@ func init() {
 }
 ```
 
-3. Run `go test ./...` and `make build`.
+3. Run `make fmt && make check` and `make build`.
 
 Alternatively, scaffold with [cobra-cli](https://github.com/spf13/cobra-cli):
 

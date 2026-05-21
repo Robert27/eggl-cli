@@ -14,7 +14,7 @@ OUTPUT ?= bin/$(BINARY)
 GOPATH := $(shell go env GOPATH)
 GORELEASER := $(GOPATH)/bin/goreleaser
 
-.PHONY: build install release-build release-snapshot test clean
+.PHONY: build install release-build release-snapshot test fmt check hooks clean
 
 build:
 	go build -ldflags "$(LDFLAGS)" -o bin/$(BINARY) .
@@ -34,6 +34,23 @@ $(GORELEASER):
 
 test:
 	go test ./...
+
+fmt:
+	gofmt -w .
+
+fmt-check:
+	@unformatted="$$(gofmt -l .)"; \
+	if [ -n "$$unformatted" ]; then \
+		echo "The following files are not formatted:"; \
+		echo "$$unformatted"; \
+		echo "Run: make fmt"; \
+		exit 1; \
+	fi
+
+check: fmt-check test
+
+hooks:
+	git config core.hooksPath .githooks
 
 clean:
 	rm -rf bin/
