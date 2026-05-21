@@ -230,6 +230,77 @@ func TestRunInvalidPath(t *testing.T) {
 	}
 }
 
+func TestRunScannedWithoutEmDash(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "plain.md")
+	if err := os.WriteFile(path, []byte("no special dashes here"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	report, err := Run(context.Background(), Options{Root: root})
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if report.Scanned != 1 {
+		t.Fatalf("Scanned = %d, want 1", report.Scanned)
+	}
+	if report.Modified != 0 {
+		t.Fatalf("Modified = %d, want 0", report.Modified)
+	}
+}
+
+func TestRunMultipleFiles(t *testing.T) {
+	root := t.TempDir()
+	for name, content := range map[string]string{
+		"a.md": "one \u2014 dash",
+		"b.md": "two \u2014 dashes \u2014 here",
+	} {
+		if err := os.WriteFile(filepath.Join(root, name), []byte(content), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	report, err := Run(context.Background(), Options{Root: root})
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if report.Modified != 2 {
+		t.Fatalf("Modified = %d, want 2", report.Modified)
+	}
+	if TotalReplacements(report) != 3 {
+		t.Fatalf("TotalReplacements = %d, want 3", TotalReplacements(report))
+	}
+}
+
+func TestRunSkipsNonRegularFile(t *testing.T) {
+	root := t.TempDir()
+	target := filepath.Join(root, "readme.md")
+	if err := os.WriteFile(target, []byte("hello \u2014 world"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(root, "link.md")
+	if err := os.Symlink(target, link); err != nil {
+		t.Skip("symlinks not supported:", err)
+	}
+
+	report, err := Run(context.Background(), Options{Root: root})
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if report.Scanned != 1 {
+		t.Fatalf("Scanned = %d, want 1 (regular file only)", report.Scanned)
+	}
+	if report.Skipped != 1 {
+		t.Fatalf("Skipped = %d, want 1 (symlink)", report.Skipped)
+	}
+}
+
+func TestIsBinaryContentEmpty(t *testing.T) {
+	if isBinaryContent(nil) {
+		t.Fatal("expected empty content not to be binary")
+	}
+}
+
 func TestRunFileNotDirectory(t *testing.T) {
 	root := t.TempDir()
 	path := filepath.Join(root, "file.txt")

@@ -1,0 +1,138 @@
+package ui
+
+import (
+	"io"
+	"os"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/creack/pty"
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
+)
+
+func openTestTTY(t *testing.T) (io.Writer, *os.File) {
+	t.Helper()
+
+	master, tty, err := pty.Open()
+	if err != nil {
+		t.Skip("pty:", err)
+	}
+	t.Cleanup(func() {
+		_ = master.Close()
+		_ = tty.Close()
+	})
+	return tty, master
+}
+
+func readPTY(t *testing.T, master *os.File) string {
+	t.Helper()
+
+	deadline := time.Now().Add(200 * time.Millisecond)
+	_ = master.SetReadDeadline(deadline)
+
+	buf := make([]byte, 8192)
+	n, err := master.Read(buf)
+	if err != nil && n == 0 {
+		t.Fatalf("read pty: %v", err)
+	}
+	return string(buf[:n])
+}
+
+func TestRenderVersionInteractive(t *testing.T) {
+	t.Setenv("NO_COLOR", "")
+
+	w, master := openTestTTY(t)
+	if !IsInteractive(w) {
+		t.Fatal("expected tty writer to be interactive")
+	}
+
+	RenderVersion(w, VersionInfo{
+		Version: "v1.0.0",
+		Commit:  "abc",
+		Date:    "2026-01-01",
+	})
+
+	got := readPTY(t, master)
+	for _, want := range []string{"eggl", "v1.0.0", "abc", "2026-01-01"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("expected %q in styled output, got %q", want, got)
+		}
+	}
+}
+
+func TestRenderHelpInteractive(t *testing.T) {
+	t.Setenv("NO_COLOR", "")
+
+	w, master := openTestTTY(t)
+	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
+	flags.BoolP("verbose", "v", false, "Log details")
+
+	RenderHelp(w, "Helper CLI", "", []HelpCommand{
+		{Name: "doctor", Description: "Checks"},
+	}, flags)
+
+	got := readPTY(t, master)
+	for _, want := range []string{"eggl", "Available Commands", "doctor", "Global Flags"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("expected %q in styled help, got %q", want, got)
+		}
+	}
+}
+
+func TestRenderDoctorInteractive(t *testing.T) {
+	t.Setenv("NO_COLOR", "")
+
+	w, master := openTestTTY(t)
+	RenderDoctor(w, []DoctorCheck{
+		{Name: "go", Status: "ok", Detail: "runtime", OK: true},
+	})
+
+	got := readPTY(t, master)
+	for _, want := range []string{"eggl doctor", "go", "All checks passed"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("expected %q in styled doctor output, got %q", want, got)
+		}
+	}
+}
+
+func TestRenderDedashInteractiveModified(t *testing.T) {
+	t.Setenv("NO_COLOR", "")
+
+	w, master := openTestTTY(t)
+	RenderDedash(w, DedashSummary{
+		Scanned:           2,
+		Modified:          1,
+		TotalReplacements: 1,
+		Changes:           []DedashChange{{Path: "a.md", Replacements: 1}},
+	})
+
+	got := readPTY(t, master)
+	for _, want := range []string{"modified 1", "a.md"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("expected %q in styled dedash output, got %q", want, got)
+		}
+	}
+}
+
+func TestRenderCommandHelpInteractive(t *testing.T) {
+	t.Setenv("NO_COLOR", "")
+
+	w, master := openTestTTY(t)
+	cmd := &cobra.Command{
+		Use:   "dedash",
+		Short: "Replace em-dashes",
+		Long:  "Long help text.",
+	}
+	cmd.Flags().String("path", ".", "scan root")
+
+	RenderCommandHelp(w, cmd)
+
+	got := readPTY(t, master)
+	for _, want := range []string{"dedash", "Usage", "Flags", "--path"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("expected %q in styled command help, got %q", want, got)
+		}
+	}
+}
