@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/lipgloss"
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
 	"golang.org/x/term"
 )
 
@@ -221,27 +223,196 @@ type HelpCommand struct {
 	Description string
 }
 
-func RenderHelp(w io.Writer, summary string, commands []HelpCommand) {
+func RenderHelp(w io.Writer, summary string, commands []HelpCommand, globalFlags *pflag.FlagSet) {
 	t := NewTheme(w)
+	sections := helpSectionsForCommands(commands, globalFlags)
+
 	if !t.enabled {
 		fmt.Fprintf(w, "%s\n\n", summary)
-		fmt.Fprintln(w, "Available Commands:")
-		for _, command := range commands {
-			fmt.Fprintf(w, "  %-12s %s\n", command.Name, command.Description)
-		}
+		writeHelpSectionsPlain(w, sections)
 		return
 	}
 
 	RenderHeader(w, appName, summary)
+	fmt.Fprintln(w, t.box.Render(renderHelpSectionsStyled(t, sections)))
+	fmt.Fprintln(w, t.muted.Render("Tip: run `eggl <command> --help` for details"))
+}
 
-	rows := make([]string, 0, len(commands))
-	for _, command := range commands {
-		rows = append(rows, fmt.Sprintf("%s  %s",
-			t.command.Render(fmt.Sprintf("%-12s", command.Name)),
-			t.muted.Render(command.Description),
-		))
+func RenderCommandHelp(w io.Writer, cmd *cobra.Command) {
+	t := NewTheme(w)
+	title := cmd.CommandPath()
+	subtitle := commandSubtitle(cmd)
+	sections := helpSectionsForCommand(cmd)
+
+	if !t.enabled {
+		fmt.Fprintf(w, "%s — %s\n\n", title, subtitle)
+		writeHelpSectionsPlain(w, sections)
+		return
 	}
 
-	fmt.Fprintln(w, t.box.Render(strings.Join(rows, "\n")))
-	fmt.Fprintln(w, t.muted.Render("Tip: run `eggl <command> --help` for details"))
+	RenderHeader(w, title, subtitle)
+	if len(sections) > 0 {
+		fmt.Fprintln(w, t.box.Render(renderHelpSectionsStyled(t, sections)))
+	}
+}
+
+type helpSection struct {
+	title string
+	lines []string
+}
+
+func commandSubtitle(cmd *cobra.Command) string {
+	if cmd.Short != "" {
+		return cmd.Short
+	}
+	return firstLine(cmd.Long)
+}
+
+func firstLine(s string) string {
+	if s == "" {
+		return ""
+	}
+	line, _, _ := strings.Cut(strings.TrimSpace(s), "\n")
+	return line
+}
+
+func commandUsage(cmd *cobra.Command) string {
+	if cmd.DisableFlagsInUseLine {
+		return cmd.Use
+	}
+	return cmd.UseLine()
+}
+
+func helpSectionsForCommands(commands []HelpCommand, globalFlags *pflag.FlagSet) []helpSection {
+	sections := make([]helpSection, 0, 2)
+
+	if len(commands) > 0 {
+		lines := make([]string, 0, len(commands))
+		for _, command := range commands {
+			lines = append(lines, fmt.Sprintf("  %-12s %s", command.Name, command.Description))
+		}
+		sections = append(sections, helpSection{title: "Available Commands", lines: lines})
+	}
+
+	if flagLines := collectFlagLines(globalFlags); len(flagLines) > 0 {
+		sections = append(sections, helpSection{title: "Global Flags", lines: flagLines})
+	}
+
+	return sections
+}
+
+func helpSectionsForCommand(cmd *cobra.Command) []helpSection {
+	sections := make([]helpSection, 0, 4)
+
+	if usage := commandUsage(cmd); usage != "" {
+		sections = append(sections, helpSection{
+			title: "Usage",
+			lines: []string{"  " + usage},
+		})
+	}
+
+	if len(cmd.ValidArgs) > 0 {
+		sections = append(sections, helpSection{
+			title: "Valid Args",
+			lines: []string{"  " + strings.Join(cmd.ValidArgs, ", ")},
+		})
+	}
+
+	if flagLines := collectFlagLines(cmd.NonInheritedFlags()); len(flagLines) > 0 {
+		sections = append(sections, helpSection{title: "Flags", lines: flagLines})
+	}
+
+	if flagLines := collectFlagLines(cmd.InheritedFlags()); len(flagLines) > 0 {
+		sections = append(sections, helpSection{title: "Global Flags", lines: flagLines})
+	}
+
+	if example := strings.TrimSpace(cmd.Example); example != "" {
+		lines := strings.Split(example, "\n")
+		for i, line := range lines {
+			lines[i] = "  " + line
+		}
+		sections = append(sections, helpSection{title: "Examples", lines: lines})
+	}
+
+	return sections
+}
+
+func collectFlagLines(flags *pflag.FlagSet) []string {
+	if flags == nil {
+		return nil
+	}
+
+	lines := make([]string, 0)
+	flags.VisitAll(func(f *pflag.Flag) {
+		if f.Hidden || f.Name == "help" {
+			return
+		}
+		lines = append(lines, formatFlagLine(f))
+	})
+	return lines
+}
+
+func formatFlagLine(f *pflag.Flag) string {
+	name := flagNames(f)
+	if shouldShowDefault(f) {
+		name = name + " " + f.DefValue
+	}
+	return fmt.Sprintf("  %-22s %s", name, f.Usage)
+}
+
+func flagNames(f *pflag.Flag) string {
+	if f.Shorthand != "" && len(f.Shorthand) == 1 {
+		return fmt.Sprintf("-%s, --%s", f.Shorthand, f.Name)
+	}
+	return "--" + f.Name
+}
+
+func shouldShowDefault(f *pflag.Flag) bool {
+	if f.DefValue == "" {
+		return false
+	}
+	switch f.Value.Type() {
+	case "bool":
+		return false
+	default:
+		return true
+	}
+}
+
+func writeHelpSectionsPlain(w io.Writer, sections []helpSection) {
+	for _, section := range sections {
+		fmt.Fprintf(w, "%s:\n", section.title)
+		for _, line := range section.lines {
+			if strings.HasPrefix(line, "  ") {
+				fmt.Fprintln(w, line)
+			} else {
+				fmt.Fprintf(w, "  %s\n", line)
+			}
+		}
+		fmt.Fprintln(w)
+	}
+}
+
+func renderHelpSectionsStyled(t Theme, sections []helpSection) string {
+	parts := make([]string, 0, len(sections))
+	for i, section := range sections {
+		if i > 0 {
+			parts = append(parts, "")
+		}
+		parts = append(parts, t.command.Render(section.title))
+		for _, line := range section.lines {
+			parts = append(parts, renderHelpLineStyled(t, line))
+		}
+	}
+	return strings.Join(parts, "\n")
+}
+
+func renderHelpLineStyled(t Theme, line string) string {
+	trimmed := strings.TrimPrefix(line, "  ")
+	if idx := strings.Index(trimmed, "  "); idx > 0 {
+		left := trimmed[:idx]
+		right := strings.TrimSpace(trimmed[idx:])
+		return "  " + t.command.Render(left) + "  " + t.muted.Render(right)
+	}
+	return "  " + t.muted.Render(trimmed)
 }

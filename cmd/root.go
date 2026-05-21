@@ -29,7 +29,21 @@ func init() {
 	rootCmd.SetHelpFunc(renderHelp)
 }
 
+func hasVisibleSubcommands(cmd *cobra.Command) bool {
+	for _, sub := range cmd.Commands() {
+		if sub.IsAvailableCommand() && !sub.Hidden {
+			return true
+		}
+	}
+	return false
+}
+
 func renderHelp(cmd *cobra.Command, args []string) {
+	if !hasVisibleSubcommands(cmd) {
+		ui.RenderCommandHelp(cmd.OutOrStdout(), cmd)
+		return
+	}
+
 	commands := make([]ui.HelpCommand, 0, len(cmd.Commands()))
 	for _, sub := range cmd.Commands() {
 		if !sub.IsAvailableCommand() || sub.Hidden {
@@ -41,7 +55,7 @@ func renderHelp(cmd *cobra.Command, args []string) {
 		})
 	}
 
-	ui.RenderHelp(cmd.OutOrStdout(), cmd.Short, commands)
+	ui.RenderHelp(cmd.OutOrStdout(), cmd.Short, commands, cmd.PersistentFlags())
 }
 
 func initLogging(verbose bool, w io.Writer) {
