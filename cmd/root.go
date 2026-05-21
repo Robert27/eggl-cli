@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"os"
 
+	"github.com/Robert27/eggl-cli/internal/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -23,6 +24,26 @@ var rootCmd = &cobra.Command{
 	},
 }
 
+func init() {
+	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable debug logging")
+	rootCmd.SetHelpFunc(renderHelp)
+}
+
+func renderHelp(cmd *cobra.Command, args []string) {
+	commands := make([]ui.HelpCommand, 0, len(cmd.Commands()))
+	for _, sub := range cmd.Commands() {
+		if !sub.IsAvailableCommand() || sub.Hidden {
+			continue
+		}
+		commands = append(commands, ui.HelpCommand{
+			Name:        sub.Name(),
+			Description: sub.Short,
+		})
+	}
+
+	ui.RenderHelp(cmd.OutOrStdout(), cmd.Short, commands)
+}
+
 func initLogging(verbose bool, w io.Writer) {
 	level := slog.LevelInfo
 	if verbose {
@@ -38,8 +59,4 @@ func Execute() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-}
-
-func init() {
-	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable debug logging")
 }

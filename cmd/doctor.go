@@ -5,6 +5,7 @@ import (
 	"log/slog"
 
 	"github.com/Robert27/eggl-cli/internal/doctor"
+	"github.com/Robert27/eggl-cli/internal/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -23,7 +24,17 @@ var doctorCmd = &cobra.Command{
 			return err
 		}
 
-		doctor.Print(cmd.OutOrStdout(), report)
+		checks := make([]ui.DoctorCheck, len(report.Checks))
+		for i, check := range report.Checks {
+			checks[i] = ui.DoctorCheck{
+				Name:   check.Name,
+				Status: check.Status,
+				Detail: check.Detail,
+				OK:     check.OK,
+			}
+		}
+
+		ui.RenderDoctor(cmd.OutOrStdout(), checks)
 
 		if doctor.HasFailures(report) {
 			return errors.New("one or more checks failed")

@@ -3,7 +3,6 @@ package doctor
 import (
 	"context"
 	"fmt"
-	"io"
 	"os"
 	"runtime"
 )
@@ -77,16 +76,6 @@ func Run(ctx context.Context, opts Options) (*Report, error) {
 	}
 
 	return &Report{Checks: checks}, nil
-}
-
-func Print(w io.Writer, report *Report) {
-	for _, check := range report.Checks {
-		marker := "ok"
-		if !check.OK {
-			marker = "fail"
-		}
-		fmt.Fprintf(w, "[%s] %s: %s (%s)\n", marker, check.Name, check.Status, check.Detail)
-	}
 }
 
 func HasFailures(report *Report) bool {

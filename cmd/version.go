@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/Robert27/eggl-cli/internal/ui"
 	"github.com/spf13/cobra"
 )
 
@@ -23,9 +24,11 @@ var versionCmd = &cobra.Command{
 			return nil
 		}
 
-		fmt.Fprintf(cmd.OutOrStdout(), "eggl version %s\n", version)
-		fmt.Fprintf(cmd.OutOrStdout(), "commit: %s\n", commit)
-		fmt.Fprintf(cmd.OutOrStdout(), "built:  %s\n", date)
+		ui.RenderVersion(cmd.OutOrStdout(), ui.VersionInfo{
+			Version: version,
+			Commit:  commit,
+			Date:    date,
+		})
 		return nil
 	},
 	SilenceUsage: true,

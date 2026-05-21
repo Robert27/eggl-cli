@@ -35,4 +35,8 @@ func TestDoctor(t *testing.T) {
 	if !strings.Contains(out.String(), "[ok] go:") {
 		t.Fatalf("expected go check in output, got %q", out.String())
 	}
+
+	if !strings.Contains(out.String(), "All checks passed") {
+		t.Fatalf("expected success summary in output, got %q", out.String())
+	}
 }
