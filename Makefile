@@ -11,6 +11,8 @@ LDFLAGS := -X $(MODULE)/cmd.version=$(VERSION) \
 GOOS ?= $(shell go env GOOS)
 GOARCH ?= $(shell go env GOARCH)
 OUTPUT ?= bin/$(BINARY)
+GOPATH := $(shell go env GOPATH)
+GORELEASER := $(GOPATH)/bin/goreleaser
 
 .PHONY: build install release-build release-snapshot test clean
 
@@ -24,8 +26,11 @@ release-build:
 	@mkdir -p $(dir $(OUTPUT))
 	GOOS=$(GOOS) GOARCH=$(GOARCH) CGO_ENABLED=0 go build -ldflags "$(LDFLAGS)" -o $(OUTPUT) .
 
-release-snapshot:
-	goreleaser release --snapshot --clean
+release-snapshot: $(GORELEASER)
+	$(GORELEASER) release --snapshot --clean
+
+$(GORELEASER):
+	go install github.com/goreleaser/goreleaser/v2@latest
 
 test:
 	go test ./...
