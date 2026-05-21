@@ -29,7 +29,7 @@ make hooks
 
 ## Release
 
-Push a `v*` tag; GitHub Actions runs GoReleaser (cross-platform archives, GitHub Release, Homebrew cask update via `TAP_GITHUB_TOKEN`).
+Push a `v*` tag; GitHub Actions runs GoReleaser (cross-platform archives, GitHub Release, Homebrew formula update via `TAP_GITHUB_TOKEN`).
 
 ```bash
 git tag vX.Y.Z && git push origin vX.Y.Z

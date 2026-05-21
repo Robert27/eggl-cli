@@ -8,8 +8,10 @@ A general-purpose helper CLI built with Go and [Cobra](https://github.com/spf13/
 
 ```bash
 brew tap Robert27/tap
-brew install --cask eggl-cli
+brew install eggl-cli
 ```
+
+Shell completions for bash, zsh, and fish are installed automatically.
 
 **Without Homebrew:** download the archive for your OS/arch from [GitHub Releases](https://github.com/Robert27/eggl-cli/releases), extract `eggl` (or `eggl.exe` on Windows), and put it on your `PATH`. Or, with Go installed:
 
@@ -42,6 +44,8 @@ eggl completion zsh
 ```
 
 ## Shell completion
+
+If you installed via Homebrew, completions are set up for you. Otherwise:
 
 **Zsh:**
 

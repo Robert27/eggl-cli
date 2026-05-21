@@ -46,12 +46,11 @@ release:
     owner: Robert27
     name: eggl-cli
 
-homebrew_casks:
+brews:
   - name: eggl-cli
     ids:
       - eggl
-    binaries:
-      - eggl
+    directory: Formula
     repository:
       owner: Robert27
       name: homebrew-tap
@@ -64,9 +63,9 @@ homebrew_casks:
       name: github-actions[bot]
       email: 41898282+github-actions[bot]@users.noreply.github.com
     commit_msg_template: "chore: update {{ .ProjectName }} to {{ .Tag }}"
-    hooks:
-      post:
-        install: |
-          if OS.mac?
-            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/eggl"]
-          end
+    extra_install: |
+      generate_completions_from_executable(bin/"eggl", shells: [:bash, :zsh, :fish], shell_parameter_format: :cobra)
+    post_install: |
+      if OS.mac?
+        system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{bin}/eggl"], sudo: false
+      end
