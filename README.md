@@ -11,6 +11,12 @@ brew tap Robert27/tap
 brew install --cask eggl-cli
 ```
 
+**Without Homebrew:** download the archive for your OS/arch from [GitHub Releases](https://github.com/Robert27/eggl-cli/releases), extract `eggl` (or `eggl.exe` on Windows), and put it on your `PATH`. Or, with Go installed:
+
+```bash
+go install github.com/Robert27/eggl-cli@latest
+```
+
 From source:
 
 ```bash
