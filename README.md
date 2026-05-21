@@ -4,6 +4,13 @@ A general-purpose helper CLI built with Go and [Cobra](https://github.com/spf13/
 
 ## Install
 
+**Homebrew:**
+
+```bash
+brew tap Robert27/tap
+brew install eggl-cli
+```
+
 From source:
 
 ```bash
