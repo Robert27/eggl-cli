@@ -40,6 +40,30 @@ func readPTY(t *testing.T, master *os.File) string {
 	return string(buf[:n])
 }
 
+func renderPTY(t *testing.T, master *os.File, slave io.Writer, render func(io.Writer)) string {
+	t.Helper()
+
+	out := make(chan string, 1)
+	go func() {
+		data, _ := io.ReadAll(master)
+		out <- string(data)
+	}()
+
+	render(slave)
+
+	if f, ok := slave.(*os.File); ok {
+		_ = f.Close()
+	}
+
+	select {
+	case got := <-out:
+		return got
+	case <-time.After(5 * time.Second):
+		t.Fatal("timeout reading pty output")
+		return ""
+	}
+}
+
 func TestRenderVersionInteractive(t *testing.T) {
 	t.Setenv("NO_COLOR", "")
 
@@ -69,11 +93,11 @@ func TestRenderHelpInteractive(t *testing.T) {
 	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
 	flags.BoolP("verbose", "v", false, "Log details")
 
-	RenderHelp(w, "Helper CLI", "", []HelpCommand{
-		{Name: "doctor", Description: "Checks"},
-	}, flags)
-
-	got := readPTY(t, master)
+	got := renderPTY(t, master, w, func(out io.Writer) {
+		RenderHelp(out, "Helper CLI", "", []HelpCommand{
+			{Name: "doctor", Description: "Checks"},
+		}, flags)
+	})
 	for _, want := range []string{"eggl", "Available Commands", "doctor", "Global Flags"} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("expected %q in styled help, got %q", want, got)
@@ -127,9 +151,9 @@ func TestRenderCommandHelpInteractive(t *testing.T) {
 	}
 	cmd.Flags().String("path", ".", "scan root")
 
-	RenderCommandHelp(w, cmd)
-
-	got := readPTY(t, master)
+	got := renderPTY(t, master, w, func(out io.Writer) {
+		RenderCommandHelp(out, cmd)
+	})
 	for _, want := range []string{"dedash", "Usage", "Flags", "--path"} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("expected %q in styled command help, got %q", want, got)

@@ -32,6 +32,7 @@ type Theme struct {
 	fail     lipgloss.Style
 	muted    lipgloss.Style
 	command  lipgloss.Style
+	heading  lipgloss.Style
 }
 
 func NewTheme(w io.Writer) Theme {
@@ -39,7 +40,7 @@ func NewTheme(w io.Writer) Theme {
 
 	t := Theme{
 		enabled:    enabled,
-		accent:     lipgloss.Color("#7C3AED"),
+		accent:     lipgloss.Color("#F97316"),
 		success:    lipgloss.Color("#22C55E"),
 		errorColor: lipgloss.Color("#EF4444"),
 		mutedColor: lipgloss.Color("#6B7280"),
@@ -85,6 +86,10 @@ func NewTheme(w io.Writer) Theme {
 
 	t.command = lipgloss.NewStyle().
 		Foreground(t.accent).
+		Bold(true)
+
+	t.heading = lipgloss.NewStyle().
+		Foreground(t.text).
 		Bold(true)
 
 	return t
@@ -392,7 +397,7 @@ func RenderHelp(w io.Writer, summary, description string, commands []HelpCommand
 	}
 
 	RenderHeader(w, appName, summary)
-	fmt.Fprintln(w, t.box.Render(renderHelpSectionsStyled(t, sections)))
+	writeHelpSectionsStyled(w, t, sections)
 	fmt.Fprintln(w, t.muted.Render("Tip: run `eggl <command> --help` for details"))
 }
 
@@ -409,9 +414,7 @@ func RenderCommandHelp(w io.Writer, cmd *cobra.Command) {
 	}
 
 	RenderHeader(w, title, subtitle)
-	if len(sections) > 0 {
-		fmt.Fprintln(w, t.box.Render(renderHelpSectionsStyled(t, sections)))
-	}
+	writeHelpSectionsStyled(w, t, sections)
 }
 
 type helpSection struct {
@@ -590,18 +593,46 @@ func writeHelpSectionsPlain(w io.Writer, sections []helpSection) {
 	}
 }
 
-func renderHelpSectionsStyled(t Theme, sections []helpSection) string {
-	parts := make([]string, 0, len(sections))
-	for i, section := range sections {
-		if i > 0 {
-			parts = append(parts, "")
-		}
-		parts = append(parts, t.command.Render(section.title))
-		for _, line := range section.lines {
-			parts = append(parts, renderHelpLineStyled(t, line))
-		}
+func helpContentWidth(w io.Writer) int {
+	const (
+		defaultWidth = 72
+		minWidth     = 40
+		maxWidth     = 100
+	)
+	f, ok := w.(*os.File)
+	if !ok {
+		return defaultWidth
 	}
-	return strings.Join(parts, "\n")
+	width, _, err := term.GetSize(int(f.Fd()))
+	if err != nil || width < minWidth {
+		return defaultWidth
+	}
+	width -= 8
+	if width > maxWidth {
+		width = maxWidth
+	}
+	if width < minWidth {
+		width = minWidth
+	}
+	return width
+}
+
+func writeHelpSectionsStyled(w io.Writer, t Theme, sections []helpSection) {
+	width := helpContentWidth(w)
+	box := t.box
+	if width > 0 {
+		box = box.Width(width)
+	}
+
+	blocks := make([]string, 0, len(sections))
+	for _, section := range sections {
+		lines := []string{t.heading.Render(section.title)}
+		for _, line := range section.lines {
+			lines = append(lines, renderHelpLineStyled(t, line))
+		}
+		blocks = append(blocks, box.Render(strings.Join(lines, "\n")))
+	}
+	fmt.Fprintln(w, strings.Join(blocks, "\n"))
 }
 
 func renderHelpLineStyled(t Theme, line string) string {

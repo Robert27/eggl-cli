@@ -15,22 +15,17 @@ var envConfigPath string
 
 var envCmd = &cobra.Command{
 	Use:   "env",
-	Short: "Switch Kubernetes context and Tailscale account together",
-	Long: `Manage paired dev environments from a local config file.
-
-Each profile maps a kubectl context to a Tailscale account (id, tailnet, or email from tailscale switch --list).
-Toggle switches between exactly two configured profiles. Use applies a profile by name.
-
-Tailscale is switched before kubectl. If kubectl fails after Tailscale switched, fix kube manually; eggl does not roll back.`,
+	Short: "Switch kubectl context and Tailscale account together",
+	Long:  "Paired profiles in ~/.config/eggl/config.yaml. See README.md for setup.",
 	Example: `  eggl env init
   eggl env show
   eggl env toggle
-  eggl env use eggl`,
+  eggl env use homelab`,
 }
 
 var envShowCmd = &cobra.Command{
 	Use:   "show",
-	Short: "Show active profile and current kube/tailscale state",
+	Short: "Show active profile and current state",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		slog.Debug("running env show", "config", envConfigPath)
 
@@ -68,7 +63,7 @@ var envShowCmd = &cobra.Command{
 
 var envToggleCmd = &cobra.Command{
 	Use:   "toggle",
-	Short: "Switch to the other profile (requires exactly 2 profiles)",
+	Short: "Flip to the other profile (2 profiles required)",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		slog.Debug("running env toggle", "config", envConfigPath)
 
@@ -160,7 +155,7 @@ func renderEnvSwitch(cmd *cobra.Command, result *env.SwitchResult) {
 }
 
 func init() {
-	envCmd.PersistentFlags().StringVar(&envConfigPath, "config", "", "Config file path (default: ~/.config/eggl/config.yaml)")
+	envCmd.PersistentFlags().StringVar(&envConfigPath, "config", "", "Path to config file")
 
 	envCmd.AddCommand(envShowCmd, envToggleCmd, envUseCmd, envPathCmd, envInitCmd)
 	rootCmd.AddCommand(envCmd)

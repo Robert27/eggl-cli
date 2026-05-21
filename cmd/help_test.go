@@ -69,3 +69,27 @@ func TestDoctorHelp(t *testing.T) {
 		t.Fatalf("doctor help should not list subcommands, got %q", output)
 	}
 }
+
+func TestEnvHelp(t *testing.T) {
+	t.Setenv("NO_COLOR", "1")
+
+	output := runHelp(t, "env", "--help")
+
+	for _, want := range []string{
+		"Available Commands:",
+		"toggle",
+		"show",
+		"use",
+		"init",
+		"path",
+		"--config",
+	} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("expected %q in env help, got %q", want, output)
+		}
+	}
+
+	if strings.Contains(output, "does not roll back") {
+		t.Fatalf("env help should use short description, got %q", output)
+	}
+}
