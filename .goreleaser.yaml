@@ -49,16 +49,17 @@ release:
     owner: Robert27
     name: eggl-cli
 
-brews:
+homebrew_casks:
   - name: eggl-cli
     ids:
+      - eggl
+    binaries:
       - eggl
     repository:
       owner: Robert27
       name: homebrew-tap
       branch: main
       token: "{{ .Env.TAP_GITHUB_TOKEN }}"
-    directory: Formula
     homepage: "https://github.com/Robert27/eggl-cli"
     description: "General-purpose helper CLI"
     license: "MIT"
@@ -66,9 +67,9 @@ brews:
       name: github-actions[bot]
       email: 41898282+github-actions[bot]@users.noreply.github.com
     commit_msg_template: "chore: update {{ .ProjectName }} to {{ .Tag }}"
-    install: |
-      bin.install "eggl"
-    test: |
-      assert_match "v{{ .Version }}", shell_output("#{bin}/eggl version --short")
-    custom_block: |
-      head "https://github.com/Robert27/eggl-cli.git", branch: "main"
+    hooks:
+      post:
+        install: |
+          if OS.mac?
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/eggl"]
+          end

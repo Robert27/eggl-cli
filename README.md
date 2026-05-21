@@ -8,7 +8,7 @@ A general-purpose helper CLI built with Go and [Cobra](https://github.com/spf13/
 
 ```bash
 brew tap Robert27/tap
-brew install eggl-cli
+brew install --cask eggl-cli
 ```
 
 From source:
