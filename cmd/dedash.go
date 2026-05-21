@@ -16,7 +16,14 @@ var (
 var dedashCmd = &cobra.Command{
 	Use:   "dedash",
 	Short: "Replace em-dashes with hyphens in text files",
-	Long:  `Recursively scan a directory and replace Unicode em-dashes (-) with ASCII hyphens (-) in text files, skipping binaries and common non-text paths.`,
+	Long: `Recursively scan a directory and replace Unicode em-dashes (—) with ASCII hyphens (-) in text files.
+
+Skips binaries, hidden paths, and common non-text directories such as node_modules and .git.
+Prints a one-line summary plus a list of changed files. Use --dry-run to preview without writing.
+
+With --verbose, stderr logs the scan root, skipped paths, and each file that would be or was modified.`,
+	Example: `  eggl dedash --dry-run
+  eggl dedash --path ./docs`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		slog.Debug("running dedash", "path", dedashPath, "dry_run", dedashDryRun)
 
@@ -49,7 +56,7 @@ var dedashCmd = &cobra.Command{
 }
 
 func init() {
-	dedashCmd.Flags().StringVar(&dedashPath, "path", ".", "Root directory to scan")
-	dedashCmd.Flags().BoolVar(&dedashDryRun, "dry-run", false, "Preview changes without writing files")
+	dedashCmd.Flags().StringVar(&dedashPath, "path", ".", "Directory tree to scan (default: current directory)")
+	dedashCmd.Flags().BoolVar(&dedashDryRun, "dry-run", false, "Report changes without writing files")
 	rootCmd.AddCommand(dedashCmd)
 }

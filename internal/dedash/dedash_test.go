@@ -139,12 +139,75 @@ func TestRunDoesNotReplaceEnDash(t *testing.T) {
 	}
 }
 
-func TestShouldSkipExtension(t *testing.T) {
-	if !shouldSkipExtension("photo.JPG") {
+func TestShouldSkipFile(t *testing.T) {
+	if !shouldSkipFile("photo.JPG") {
 		t.Fatal("expected .jpg to be skipped")
 	}
-	if shouldSkipExtension("readme.md") {
+	if shouldSkipFile("readme.md") {
 		t.Fatal("expected .md not to be skipped")
+	}
+	if !shouldSkipFile("app.jar") {
+		t.Fatal("expected .jar to be skipped")
+	}
+	if !shouldSkipFile("bundle.min.js") {
+		t.Fatal("expected .min.js to be skipped")
+	}
+	if !shouldSkipFile(".DS_Store") {
+		t.Fatal("expected .DS_Store to be skipped")
+	}
+}
+
+func TestRunSkipsBuildOutputDirs(t *testing.T) {
+	root := t.TempDir()
+	cases := []struct {
+		dir  string
+		file string
+	}{
+		{"target", "classes/readme.md"},
+		{".gradle", "caches/readme.md"},
+		{"__pycache__", "module/readme.md"},
+	}
+	for _, tc := range cases {
+		path := filepath.Join(root, tc.dir, tc.file)
+		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte("hello \u2014 world"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	report, err := Run(context.Background(), Options{Root: root})
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if report.Scanned != 0 {
+		t.Fatalf("Scanned = %d, want 0", report.Scanned)
+	}
+	if report.Modified != 0 {
+		t.Fatalf("Modified = %d, want 0", report.Modified)
+	}
+}
+
+func TestRunSkipsJarFiles(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "lib", "app.jar")
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte("PK\x03\x04fake jar"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	report, err := Run(context.Background(), Options{Root: root})
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if report.Scanned != 0 {
+		t.Fatalf("Scanned = %d, want 0", report.Scanned)
+	}
+	if report.Skipped != 1 {
+		t.Fatalf("Skipped = %d, want 1", report.Skipped)
 	}
 }
 

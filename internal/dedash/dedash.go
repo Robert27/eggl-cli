@@ -46,6 +46,7 @@ func Run(ctx context.Context, opts Options) (*Report, error) {
 	}
 
 	report := &Report{}
+	slog.Debug("scanning directory", "root", root, "dry_run", opts.DryRun)
 
 	err = filepath.WalkDir(root, func(path string, d fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
@@ -54,20 +55,20 @@ func Run(ctx context.Context, opts Options) (*Report, error) {
 
 		if d.IsDir() {
 			if path != root && shouldSkipDir(d.Name()) {
-				slog.Debug("skipping directory", "path", path)
+				slog.Debug("skipping directory", "path", path, "reason", "ignored directory name")
 				return filepath.SkipDir
 			}
 			return nil
 		}
 
 		if !d.Type().IsRegular() {
-			slog.Debug("skipping non-regular file", "path", path)
+			slog.Debug("skipping file", "path", path, "reason", "not a regular file")
 			report.Skipped++
 			return nil
 		}
 
-		if shouldSkipExtension(d.Name()) {
-			slog.Debug("skipping extension", "path", path)
+		if shouldSkipFile(d.Name()) {
+			slog.Debug("skipping file", "path", path, "reason", "ignored file name")
 			report.Skipped++
 			return nil
 		}
@@ -76,7 +77,7 @@ func Run(ctx context.Context, opts Options) (*Report, error) {
 
 		change, err := processFile(path, opts.DryRun)
 		if err != nil {
-			slog.Debug("skipping file", "path", path, "error", err)
+			slog.Debug("skipping file", "path", path, "reason", err.Error())
 			report.Skipped++
 			return nil
 		}
@@ -92,11 +93,22 @@ func Run(ctx context.Context, opts Options) (*Report, error) {
 		}
 		change.Path = relPath
 		report.Changes = append(report.Changes, *change)
+		slog.Debug("found em-dashes",
+			"path", relPath,
+			"replacements", change.Replacements,
+			"dry_run", opts.DryRun,
+		)
 		return nil
 	})
 	if err != nil {
 		return nil, fmt.Errorf("walk directory: %w", err)
 	}
+
+	slog.Debug("scan complete",
+		"scanned", report.Scanned,
+		"modified", report.Modified,
+		"skipped", report.Skipped,
+	)
 
 	return report, nil
 }

@@ -283,9 +283,16 @@ type HelpCommand struct {
 	Description string
 }
 
-func RenderHelp(w io.Writer, summary string, commands []HelpCommand, globalFlags *pflag.FlagSet) {
+func RenderHelp(w io.Writer, summary, description string, commands []HelpCommand, globalFlags *pflag.FlagSet) {
 	t := NewTheme(w)
 	sections := helpSectionsForCommands(commands, globalFlags)
+	if description != "" {
+		lines := strings.Split(description, "\n")
+		for i, line := range lines {
+			lines[i] = "  " + line
+		}
+		sections = append([]helpSection{{title: "Description", lines: lines}}, sections...)
+	}
 
 	if !t.enabled {
 		fmt.Fprintf(w, "%s\n\n", summary)
@@ -336,9 +343,34 @@ func firstLine(s string) string {
 	return line
 }
 
+func CommandDescription(cmd *cobra.Command) string {
+	return commandDescription(cmd)
+}
+
+func commandDescription(cmd *cobra.Command) string {
+	long := strings.TrimSpace(cmd.Long)
+	if long == "" {
+		return ""
+	}
+	short := strings.TrimSpace(cmd.Short)
+	if short != "" && firstLine(long) == short {
+		rest, _, found := strings.Cut(long, "\n")
+		if !found || strings.TrimSpace(rest) == "" {
+			return ""
+		}
+		_, remainder, _ := strings.Cut(long, "\n")
+		return strings.TrimSpace(remainder)
+	}
+	return long
+}
+
 func commandUsage(cmd *cobra.Command) string {
 	if cmd.DisableFlagsInUseLine {
-		return cmd.Use
+		use := cmd.Use
+		if idx := strings.Index(use, " "); idx > 0 {
+			return cmd.CommandPath() + use[idx:]
+		}
+		return cmd.CommandPath()
 	}
 	return cmd.UseLine()
 }
@@ -371,6 +403,14 @@ func helpSectionsForCommand(cmd *cobra.Command) []helpSection {
 		})
 	}
 
+	if desc := commandDescription(cmd); desc != "" {
+		lines := strings.Split(desc, "\n")
+		for i, line := range lines {
+			lines[i] = "  " + line
+		}
+		sections = append(sections, helpSection{title: "Description", lines: lines})
+	}
+
 	if len(cmd.ValidArgs) > 0 {
 		sections = append(sections, helpSection{
 			title: "Valid Args",
@@ -387,11 +427,17 @@ func helpSectionsForCommand(cmd *cobra.Command) []helpSection {
 	}
 
 	if example := strings.TrimSpace(cmd.Example); example != "" {
-		lines := strings.Split(example, "\n")
-		for i, line := range lines {
-			lines[i] = "  " + line
+		lines := make([]string, 0)
+		for _, line := range strings.Split(example, "\n") {
+			line = strings.TrimSpace(line)
+			if line == "" {
+				continue
+			}
+			lines = append(lines, "  "+line)
 		}
-		sections = append(sections, helpSection{title: "Examples", lines: lines})
+		if len(lines) > 0 {
+			sections = append(sections, helpSection{title: "Examples", lines: lines})
+		}
 	}
 
 	return sections

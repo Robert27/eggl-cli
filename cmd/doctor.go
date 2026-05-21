@@ -14,6 +14,15 @@ var doctorCheckPath string
 var doctorCmd = &cobra.Command{
 	Use:   "doctor",
 	Short: "Check local environment and dependencies",
+	Long: `Run quick sanity checks for tools and paths eggl relies on.
+
+Checks the Go runtime, platform (GOOS/GOARCH), and that a home directory is accessible.
+Use --check-path to validate a different directory instead of $HOME.
+Exits with an error when any check fails.
+
+With --verbose, stderr logs each check name and result as it runs.`,
+	Example: `  eggl doctor
+  eggl doctor --check-path /tmp`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		slog.Debug("running doctor checks", "check_path", doctorCheckPath)
 
@@ -46,6 +55,6 @@ var doctorCmd = &cobra.Command{
 }
 
 func init() {
-	doctorCmd.Flags().StringVar(&doctorCheckPath, "check-path", "", "Path to verify instead of $HOME")
+	doctorCmd.Flags().StringVar(&doctorCheckPath, "check-path", "", "Directory to validate instead of $HOME (must exist and be readable)")
 	rootCmd.AddCommand(doctorCmd)
 }

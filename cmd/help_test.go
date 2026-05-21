@@ -31,12 +31,15 @@ func TestDedashHelp(t *testing.T) {
 	for _, want := range []string{
 		"eggl dedash",
 		"Usage:",
+		"Description:",
 		"dedash",
 		"Flags:",
 		"--path",
 		"--dry-run",
+		"Examples:",
 		"Global Flags:",
 		"--verbose",
+		"Log operation details to stderr",
 	} {
 		if !strings.Contains(output, want) {
 			t.Fatalf("expected %q in dedash help, got %q", want, output)

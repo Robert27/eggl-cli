@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"log/slog"
 
 	"github.com/Robert27/eggl-cli/internal/ui"
 	"github.com/spf13/cobra"
@@ -18,7 +19,14 @@ var versionShort bool
 var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "Print the version information",
+	Long: `Show the installed eggl version, git commit, and build date.
+
+Use --short for script-friendly output containing only the version string.`,
+	Example: `  eggl version
+  eggl version --short`,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		slog.Debug("printing version", "short", versionShort)
+
 		if versionShort {
 			fmt.Fprintln(cmd.OutOrStdout(), version)
 			return nil
@@ -35,6 +43,6 @@ var versionCmd = &cobra.Command{
 }
 
 func init() {
-	versionCmd.Flags().BoolVar(&versionShort, "short", false, "Print only the version number")
+	versionCmd.Flags().BoolVar(&versionShort, "short", false, "Print only the version string (no commit or build date)")
 	rootCmd.AddCommand(versionCmd)
 }

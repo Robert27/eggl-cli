@@ -3,6 +3,7 @@ package doctor
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"runtime"
 )
@@ -25,55 +26,70 @@ type Report struct {
 func Run(ctx context.Context, opts Options) (*Report, error) {
 	_ = ctx
 
-	checks := []Check{
-		{
-			Name:   "go",
-			Status: runtime.Version(),
-			Detail: "Go runtime available",
-			OK:     true,
-		},
-		{
-			Name:   "os",
-			Status: fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH),
-			Detail: "Platform detected",
-			OK:     true,
-		},
-	}
+	slog.Debug("starting environment checks", "check_path", opts.CheckPath)
+
+	checks := make([]Check, 0, 3)
+
+	slog.Debug("running check", "name", "go")
+	checks = append(checks, Check{
+		Name:   "go",
+		Status: runtime.Version(),
+		Detail: "Go runtime available",
+		OK:     true,
+	})
+
+	slog.Debug("running check", "name", "os")
+	checks = append(checks, Check{
+		Name:   "os",
+		Status: fmt.Sprintf("%s/%s", runtime.GOOS, runtime.GOARCH),
+		Detail: "Platform detected",
+		OK:     true,
+	})
 
 	path := opts.CheckPath
 	if path == "" {
 		path = os.Getenv("HOME")
 	}
 
+	slog.Debug("running check", "name", "home", "path", path)
+
+	var homeCheck Check
 	if path == "" {
-		checks = append(checks, Check{
+		homeCheck = Check{
 			Name:   "home",
 			Status: "missing",
 			Detail: "HOME environment variable is not set",
 			OK:     false,
-		})
+		}
 	} else if info, err := os.Stat(path); err != nil {
-		checks = append(checks, Check{
+		homeCheck = Check{
 			Name:   "home",
 			Status: "error",
 			Detail: err.Error(),
 			OK:     false,
-		})
+		}
 	} else if !info.IsDir() {
-		checks = append(checks, Check{
+		homeCheck = Check{
 			Name:   "home",
 			Status: "invalid",
 			Detail: fmt.Sprintf("%s is not a directory", path),
 			OK:     false,
-		})
+		}
 	} else {
-		checks = append(checks, Check{
+		homeCheck = Check{
 			Name:   "home",
 			Status: path,
 			Detail: "Home directory accessible",
 			OK:     true,
-		})
+		}
 	}
+	checks = append(checks, homeCheck)
+	slog.Debug("check result",
+		"name", homeCheck.Name,
+		"ok", homeCheck.OK,
+		"status", homeCheck.Status,
+		"detail", homeCheck.Detail,
+	)
 
 	return &Report{Checks: checks}, nil
 }

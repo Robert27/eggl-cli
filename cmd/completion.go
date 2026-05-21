@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"log/slog"
+
 	"github.com/spf13/cobra"
 )
 
@@ -34,7 +36,11 @@ PowerShell:
 	DisableFlagsInUseLine: true,
 	ValidArgs:             []string{"bash", "zsh", "fish", "powershell"},
 	Args:                  cobra.MatchAll(cobra.ExactArgs(1), cobra.OnlyValidArgs),
+	Example: `  eggl completion zsh > "${fpath[1]}/_eggl"
+  source <(eggl completion bash)`,
 	RunE: func(cmd *cobra.Command, args []string) error {
+		slog.Debug("generating shell completion", "shell", args[0])
+
 		out := cmd.OutOrStdout()
 		switch args[0] {
 		case "bash":

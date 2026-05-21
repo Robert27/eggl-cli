@@ -17,7 +17,9 @@ var (
 var rootCmd = &cobra.Command{
 	Use:   "eggl",
 	Short: "A general-purpose helper CLI",
-	Long:  `eggl is a personal helper CLI for dev workflow, cloud, and everyday tasks.`,
+	Long: `eggl is a personal helper CLI for dev workflow, cloud, and everyday tasks.
+
+Use --verbose to print operation details (skipped paths, check progress, and similar) to stderr while a command runs.`,
 	PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 		initLogging(verbose, cmd.ErrOrStderr())
 		return nil
@@ -25,7 +27,7 @@ var rootCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Enable debug logging")
+	rootCmd.PersistentFlags().BoolVarP(&verbose, "verbose", "v", false, "Log operation details to stderr (skipped paths, check progress, etc.)")
 	rootCmd.SetHelpFunc(renderHelp)
 }
 
@@ -55,7 +57,7 @@ func renderHelp(cmd *cobra.Command, args []string) {
 		})
 	}
 
-	ui.RenderHelp(cmd.OutOrStdout(), cmd.Short, commands, cmd.PersistentFlags())
+	ui.RenderHelp(cmd.OutOrStdout(), cmd.Short, ui.CommandDescription(cmd), commands, cmd.PersistentFlags())
 }
 
 func initLogging(verbose bool, w io.Writer) {
