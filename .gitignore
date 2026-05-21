@@ -1,0 +1,38 @@
+# Build output
+/bin/
+/dist/
+eggl
+eggl-*
+
+# Go binaries and test artifacts
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+coverage.txt
+coverage.html
+
+# Go workspace (local multi-module dev)
+go.work
+go.work.sum
+
+# Release workflow artifacts
+RELEASE_NOTES.md
+
+# Environment and secrets
+.env
+.env.*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
