@@ -9,8 +9,9 @@ import (
 )
 
 var (
-	dedashPath   string
-	dedashDryRun bool
+	dedashPath       string
+	dedashDryRun     bool
+	dedashExtensions []string
 )
 
 var dedashCmd = &cobra.Command{
@@ -19,17 +20,20 @@ var dedashCmd = &cobra.Command{
 	Long: `Recursively scan a directory and replace Unicode em-dashes (—) with ASCII hyphens (-) in text files.
 
 Skips binaries, hidden paths, and common non-text directories such as node_modules and .git.
+Use --ext to limit processing to specific file extensions (for example md,txt or .md,.txt).
 Prints a one-line summary plus a list of changed files. Use --dry-run to preview without writing.
 
 With --verbose, stderr logs the scan root, skipped paths, and each file that would be or was modified.`,
 	Example: `  eggl dedash --dry-run
-  eggl dedash --path ./docs`,
+  eggl dedash --path ./docs
+  eggl dedash --ext md,txt --dry-run`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		slog.Debug("running dedash", "path", dedashPath, "dry_run", dedashDryRun)
+		slog.Debug("running dedash", "path", dedashPath, "dry_run", dedashDryRun, "extensions", dedashExtensions)
 
 		report, err := dedash.Run(cmd.Context(), dedash.Options{
-			Root:   dedashPath,
-			DryRun: dedashDryRun,
+			Root:       dedashPath,
+			DryRun:     dedashDryRun,
+			Extensions: dedashExtensions,
 		})
 		if err != nil {
 			return err
@@ -58,5 +62,6 @@ With --verbose, stderr logs the scan root, skipped paths, and each file that wou
 func init() {
 	dedashCmd.Flags().StringVar(&dedashPath, "path", ".", "Directory tree to scan (default: current directory)")
 	dedashCmd.Flags().BoolVar(&dedashDryRun, "dry-run", false, "Report changes without writing files")
+	dedashCmd.Flags().StringSliceVar(&dedashExtensions, "ext", nil, "Only process files with these extensions (comma-separated or repeatable, e.g. md,txt)")
 	rootCmd.AddCommand(dedashCmd)
 }

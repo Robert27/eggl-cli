@@ -8,6 +8,18 @@ import (
 	"testing"
 )
 
+func writeTestFile(root, name, content string) error {
+	return os.WriteFile(filepath.Join(root, name), []byte(content), 0o644)
+}
+
+func readTestFile(root, name string) (string, error) {
+	data, err := os.ReadFile(filepath.Join(root, name))
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
+}
+
 func TestRunReplacesEmDash(t *testing.T) {
 	root := t.TempDir()
 	path := filepath.Join(root, "readme.md")

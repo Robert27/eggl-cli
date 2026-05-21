@@ -13,8 +13,9 @@ import (
 const emDash = "\u2014"
 
 type Options struct {
-	Root   string
-	DryRun bool
+	Root       string
+	DryRun     bool
+	Extensions []string
 }
 
 type FileChange struct {
@@ -45,8 +46,10 @@ func Run(ctx context.Context, opts Options) (*Report, error) {
 		return nil, fmt.Errorf("%s is not a directory", root)
 	}
 
+	extensions := normalizeExtensions(opts.Extensions)
+
 	report := &Report{}
-	slog.Debug("scanning directory", "root", root, "dry_run", opts.DryRun)
+	slog.Debug("scanning directory", "root", root, "dry_run", opts.DryRun, "extensions", extensions)
 
 	err = filepath.WalkDir(root, func(path string, d fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
@@ -69,6 +72,12 @@ func Run(ctx context.Context, opts Options) (*Report, error) {
 
 		if shouldSkipFile(d.Name()) {
 			slog.Debug("skipping file", "path", path, "reason", "ignored file name")
+			report.Skipped++
+			return nil
+		}
+
+		if !matchesExtension(d.Name(), extensions) {
+			slog.Debug("skipping file", "path", path, "reason", "extension not included")
 			report.Skipped++
 			return nil
 		}
