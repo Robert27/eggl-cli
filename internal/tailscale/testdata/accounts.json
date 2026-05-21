@@ -1,0 +1,23 @@
+[
+  {
+    "id": "a7f2",
+    "nickname": "user-b",
+    "tailnet": "example-beta.internal",
+    "account": "user-b@example.com",
+    "selected": false
+  },
+  {
+    "id": "d9c4",
+    "nickname": "user-c",
+    "tailnet": "example-gamma.internal",
+    "account": "user-c@example.com",
+    "selected": false
+  },
+  {
+    "id": "b3e1",
+    "nickname": "user-a",
+    "tailnet": "example-alpha.internal",
+    "account": "user-a@example.com",
+    "selected": true
+  }
+]

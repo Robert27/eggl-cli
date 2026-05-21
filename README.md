@@ -40,8 +40,27 @@ eggl version
 eggl version --short
 eggl doctor
 eggl doctor --verbose
+eggl env init
+eggl env show
+eggl env toggle
 eggl completion zsh
 ```
+
+### Environment profiles (`eggl env`)
+
+Switch kubectl context and Tailscale account together from `~/.config/eggl/config.yaml`:
+
+```yaml
+profiles:
+  alpha:
+    kube_context: context-a
+    tailscale_account: b3e1
+  beta:
+    kube_context: context-b
+    tailscale_account: a7f2
+```
+
+`tailscale_account` can be an account id, tailnet name, or email from `tailscale switch --list`. `toggle` requires exactly two profiles.
 
 ## Shell completion
 

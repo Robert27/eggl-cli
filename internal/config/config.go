@@ -1,0 +1,118 @@
+package config
+
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"gopkg.in/yaml.v3"
+)
+
+const fileName = "config.yaml"
+
+type Config struct {
+	Profiles map[string]Profile `yaml:"profiles"`
+}
+
+type Profile struct {
+	KubeContext      string `yaml:"kube_context"`
+	TailscaleAccount string `yaml:"tailscale_account"`
+}
+
+func DefaultPath() string {
+	if dir := os.Getenv("XDG_CONFIG_HOME"); dir != "" {
+		return filepath.Join(dir, "eggl", fileName)
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return filepath.Join(".config", "eggl", fileName)
+	}
+	return filepath.Join(home, ".config", "eggl", fileName)
+}
+
+func Load(path string) (*Config, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("read config: %w", err)
+	}
+
+	var cfg Config
+	if err := yaml.Unmarshal(data, &cfg); err != nil {
+		return nil, fmt.Errorf("parse config: %w", err)
+	}
+
+	if err := cfg.Validate(); err != nil {
+		return nil, err
+	}
+
+	return &cfg, nil
+}
+
+func (c *Config) Validate() error {
+	if len(c.Profiles) == 0 {
+		return fmt.Errorf("config: at least one profile is required")
+	}
+
+	for name, profile := range c.Profiles {
+		if strings.TrimSpace(name) == "" {
+			return fmt.Errorf("config: profile name must not be empty")
+		}
+		if strings.TrimSpace(profile.KubeContext) == "" {
+			return fmt.Errorf("config: profile %q: kube_context is required", name)
+		}
+		if strings.TrimSpace(profile.TailscaleAccount) == "" {
+			return fmt.Errorf("config: profile %q: tailscale_account is required", name)
+		}
+	}
+
+	return nil
+}
+
+func (c *Config) ProfileNames() []string {
+	names := make([]string, 0, len(c.Profiles))
+	for name := range c.Profiles {
+		names = append(names, name)
+	}
+	return names
+}
+
+func InitTemplate() string {
+	return `# eggl env profiles — edit with your kubectl contexts and Tailscale account refs.
+# Account refs: id from ` + "`tailscale switch --list`" + `, or tailnet slug, or account email.
+#
+# profiles:
+#   alpha:
+#     kube_context: context-a
+#     tailscale_account: b3e1
+#   beta:
+#     kube_context: context-b
+#     tailscale_account: a7f2
+
+profiles:
+  example-a:
+    kube_context: context-a
+    tailscale_account: account-id-a
+  example-b:
+    kube_context: context-b
+    tailscale_account: account-id-b
+`
+}
+
+func WriteInit(path string) error {
+	if _, err := os.Stat(path); err == nil {
+		return fmt.Errorf("config already exists: %s", path)
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("stat config: %w", err)
+	}
+
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return fmt.Errorf("create config dir: %w", err)
+	}
+
+	if err := os.WriteFile(path, []byte(InitTemplate()), 0o644); err != nil {
+		return fmt.Errorf("write config: %w", err)
+	}
+
+	return nil
+}

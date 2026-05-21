@@ -253,6 +253,97 @@ func dedashSummaryLine(summary DedashSummary) string {
 		summary.Scanned, skipped, summary.Modified, summary.TotalReplacements)
 }
 
+type EnvProfile struct {
+	Name             string
+	KubeContext      string
+	TailscaleAccount string
+}
+
+type EnvShowReport struct {
+	ActiveProfile string
+	Unknown       bool
+	KubeContext   string
+	Tailscale     string
+	ConfigPath    string
+	Profiles      []EnvProfile
+}
+
+type EnvSwitchResult struct {
+	FromProfile string
+	ToProfile   string
+	FromKube    string
+	ToKube      string
+	FromTS      string
+	ToTS        string
+}
+
+func RenderEnvShow(w io.Writer, report EnvShowReport) {
+	t := NewTheme(w)
+	if !t.enabled {
+		if report.Unknown {
+			fmt.Fprintf(w, "profile: unknown\n")
+		} else {
+			fmt.Fprintf(w, "profile: %s\n", report.ActiveProfile)
+		}
+		fmt.Fprintf(w, "kube: %s\n", report.KubeContext)
+		fmt.Fprintf(w, "tailscale: %s\n", report.Tailscale)
+		fmt.Fprintf(w, "config: %s\n", report.ConfigPath)
+		for _, p := range report.Profiles {
+			fmt.Fprintf(w, "  %s: kube=%s tailscale=%s\n", p.Name, p.KubeContext, p.TailscaleAccount)
+		}
+		return
+	}
+
+	RenderHeader(w, "eggl env", "Environment profile status")
+
+	profileVal := report.ActiveProfile
+	if report.Unknown {
+		profileVal = "unknown"
+	}
+	lines := []string{
+		renderKV(t, "profile", profileVal),
+		renderKV(t, "kube", report.KubeContext),
+		renderKV(t, "tailscale", report.Tailscale),
+		renderKV(t, "config", report.ConfigPath),
+	}
+	fmt.Fprintln(w, t.box.Render(strings.Join(lines, "\n")))
+
+	if len(report.Profiles) > 0 {
+		fmt.Fprintln(w, t.muted.Render("Configured profiles:"))
+		for _, p := range report.Profiles {
+			fmt.Fprintf(w, "  %s %s\n",
+				t.command.Render(p.Name),
+				t.muted.Render(fmt.Sprintf("kube=%s tailscale=%s", p.KubeContext, p.TailscaleAccount)),
+			)
+		}
+	}
+}
+
+func RenderEnvSwitch(w io.Writer, result EnvSwitchResult) {
+	t := NewTheme(w)
+	if !t.enabled {
+		fmt.Fprintf(w, "profile: %s → %s\n", result.FromProfile, result.ToProfile)
+		fmt.Fprintf(w, "kube: %s → %s\n", result.FromKube, result.ToKube)
+		fmt.Fprintf(w, "tailscale: %s → %s\n", result.FromTS, result.ToTS)
+		return
+	}
+
+	RenderHeader(w, "eggl env", "Switched environment profile")
+	lines := []string{
+		renderKV(t, "profile", fmt.Sprintf("%s → %s", emptyDash(result.FromProfile), result.ToProfile)),
+		renderKV(t, "kube", fmt.Sprintf("%s → %s", result.FromKube, result.ToKube)),
+		renderKV(t, "tailscale", fmt.Sprintf("%s → %s", result.FromTS, result.ToTS)),
+	}
+	fmt.Fprintln(w, t.ok.Render(t.box.Render(strings.Join(lines, "\n"))))
+}
+
+func emptyDash(s string) string {
+	if s == "" {
+		return "—"
+	}
+	return s
+}
+
 func renderDoctorSummary(w io.Writer, t Theme, checks []DoctorCheck) {
 	failures := 0
 	for _, check := range checks {
