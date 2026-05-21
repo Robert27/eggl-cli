@@ -11,7 +11,7 @@ import (
 func TestDedashDryRun(t *testing.T) {
 	root := t.TempDir()
 	path := filepath.Join(root, "readme.md")
-	if err := os.WriteFile(path, []byte("hello — world"), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte("hello \u2014 world"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -39,7 +39,7 @@ func TestDedashDryRun(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(got) != "hello — world" {
+	if string(got) != "hello \u2014 world" {
 		t.Fatalf("file should be unchanged in dry-run, got %q", got)
 	}
 }

@@ -11,7 +11,7 @@ import (
 func TestRunReplacesEmDash(t *testing.T) {
 	root := t.TempDir()
 	path := filepath.Join(root, "readme.md")
-	if err := os.WriteFile(path, []byte("hello — world — again"), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte("hello \u2014 world \u2014 again"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -39,7 +39,7 @@ func TestRunReplacesEmDash(t *testing.T) {
 func TestRunDryRunDoesNotWrite(t *testing.T) {
 	root := t.TempDir()
 	path := filepath.Join(root, "readme.md")
-	original := "hello — world"
+	original := "hello \u2014 world"
 	if err := os.WriteFile(path, []byte(original), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -65,7 +65,7 @@ func TestRunDryRunDoesNotWrite(t *testing.T) {
 func TestRunSkipsBinaryFile(t *testing.T) {
 	root := t.TempDir()
 	path := filepath.Join(root, "image.png")
-	if err := os.WriteFile(path, []byte("fake\x00png — dash"), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte("fake\x00png - dash"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -88,7 +88,7 @@ func TestRunSkipsNodeModules(t *testing.T) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(path, []byte("hello — world"), 0o644); err != nil {
+	if err := os.WriteFile(path, []byte("hello \u2014 world"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -108,7 +108,7 @@ func TestRunSkipsNodeModules(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(got) != "hello — world" {
+	if string(got) != "hello \u2014 world" {
 		t.Fatalf("file content = %q, want unchanged", got)
 	}
 }
@@ -116,7 +116,7 @@ func TestRunSkipsNodeModules(t *testing.T) {
 func TestRunDoesNotReplaceEnDash(t *testing.T) {
 	root := t.TempDir()
 	path := filepath.Join(root, "readme.md")
-	original := "range – value"
+	original := "range \u2013 value"
 	if err := os.WriteFile(path, []byte(original), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -152,7 +152,7 @@ func TestIsBinaryContent(t *testing.T) {
 	if !isBinaryContent([]byte("hello\x00world")) {
 		t.Fatal("expected null byte content to be binary")
 	}
-	if isBinaryContent([]byte("hello — world")) {
+	if isBinaryContent([]byte("hello \u2014 world")) {
 		t.Fatal("expected valid UTF-8 text not to be binary")
 	}
 	if !isBinaryContent([]byte{0xff, 0xfe, 0xfd}) {

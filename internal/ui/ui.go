@@ -305,7 +305,7 @@ func RenderCommandHelp(w io.Writer, cmd *cobra.Command) {
 	sections := helpSectionsForCommand(cmd)
 
 	if !t.enabled {
-		fmt.Fprintf(w, "%s — %s\n\n", title, subtitle)
+		fmt.Fprintf(w, "%s - %s\n\n", title, subtitle)
 		writeHelpSectionsPlain(w, sections)
 		return
 	}

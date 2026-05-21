@@ -16,7 +16,7 @@ var (
 var dedashCmd = &cobra.Command{
 	Use:   "dedash",
 	Short: "Replace em-dashes with hyphens in text files",
-	Long:  `Recursively scan a directory and replace Unicode em-dashes (—) with ASCII hyphens (-) in text files, skipping binaries and common non-text paths.`,
+	Long:  `Recursively scan a directory and replace Unicode em-dashes (-) with ASCII hyphens (-) in text files, skipping binaries and common non-text paths.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		slog.Debug("running dedash", "path", dedashPath, "dry_run", dedashDryRun)
 

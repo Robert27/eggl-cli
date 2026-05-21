@@ -69,4 +69,4 @@ Makefile          # build, install, test, release-snapshot
 - **Before every commit:** run `make fmt && make check` (or rely on the pre-commit hook after `make hooks`).
 - No AI-generated comments; only meaningful comments for non-obvious logic.
 - No unnecessary Markdown files unless requested.
-- Keep agent output compact and token-efficient (comments and prose—not code logic).
+- Keep agent output compact and token-efficient (comments and prose-not code logic).
