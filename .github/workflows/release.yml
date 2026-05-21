@@ -7,10 +7,14 @@ on:
 
 permissions:
   contents: write
+  deployments: write
 
 jobs:
   goreleaser:
     runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: https://github.com/${{ github.repository }}/releases/tag/${{ github.ref_name }}
     steps:
       - uses: actions/checkout@v4
         with:
