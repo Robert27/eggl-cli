@@ -41,9 +41,6 @@ archives:
 checksum:
   name_template: checksums.txt
 
-changelog:
-  disable: true
-
 release:
   github:
     owner: Robert27
