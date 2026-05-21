@@ -101,7 +101,7 @@ Makefile          # build, install, test
 
 ```bash
 make test
-make build VERSION=v0.1.0
+make build VERSION=v0.2.0
 ```
 
 ## Releasing
