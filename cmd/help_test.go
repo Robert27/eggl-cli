@@ -1,43 +1,9 @@
 package cmd
 
 import (
-	"bytes"
 	"strings"
 	"testing"
-
-	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 )
-
-func runHelp(t *testing.T, args ...string) string {
-	t.Helper()
-
-	rootCmd.SetArgs(args)
-	var out bytes.Buffer
-	rootCmd.SetOut(&out)
-	rootCmd.SetErr(&bytes.Buffer{})
-
-	if err := rootCmd.Execute(); err != nil {
-		t.Fatalf("Execute() error = %v", err)
-	}
-
-	resetCommandFlags(rootCmd)
-	return out.String()
-}
-
-func resetCommandFlags(cmd *cobra.Command) {
-	cmd.Flags().VisitAll(func(f *pflag.Flag) {
-		_ = f.Value.Set(f.DefValue)
-		f.Changed = false
-	})
-	cmd.PersistentFlags().VisitAll(func(f *pflag.Flag) {
-		_ = f.Value.Set(f.DefValue)
-		f.Changed = false
-	})
-	for _, sub := range cmd.Commands() {
-		resetCommandFlags(sub)
-	}
-}
 
 func TestRootHelp(t *testing.T) {
 	t.Setenv("NO_COLOR", "1")

@@ -33,7 +33,8 @@ $(GORELEASER):
 	go install github.com/goreleaser/goreleaser/v2@latest
 
 test:
-	go test ./...
+	go test -race -coverprofile=coverage.out ./...
+	@go tool cover -func=coverage.out | tail -1
 
 fmt:
 	gofmt -w .
