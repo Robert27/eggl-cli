@@ -103,3 +103,15 @@ Makefile          # build, install, test
 make test
 make build VERSION=v0.1.0
 ```
+
+## Releasing
+
+Releases are automated with [GoReleaser](https://goreleaser.com/) when a `v*` tag is pushed. The workflow builds cross-platform archives, publishes a GitHub Release, and updates the [homebrew-tap](https://github.com/Robert27/homebrew-tap) formula.
+
+**One-time setup:** add a `TAP_GITHUB_TOKEN` repository secret in `eggl-cli` with `repo` scope so Goreleaser can push formula updates to `Robert27/homebrew-tap`. The default `GITHUB_TOKEN` cannot write to other repositories.
+
+Test a release locally without publishing:
+
+```bash
+make release-snapshot
+```

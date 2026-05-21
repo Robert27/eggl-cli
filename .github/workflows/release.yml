@@ -5,94 +5,34 @@ on:
     tags:
       - 'v*'
 
+permissions:
+  contents: write
+
 jobs:
-  release:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: ubuntu-latest
-            goos: linux
-            goarch: amd64
-            asset: eggl-linux-x64
-          - os: ubuntu-latest
-            goos: linux
-            goarch: arm64
-            asset: eggl-linux-arm64
-          - os: macos-latest
-            goos: darwin
-            goarch: arm64
-            asset: eggl-darwin-arm64
-          - os: windows-latest
-            goos: windows
-            goarch: amd64
-            asset: eggl-win32-x64.exe
-    runs-on: ${{ matrix.os }}
-    permissions:
-      contents: read
+  goreleaser:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
           cache: true
 
-      - name: Run tests
-        run: go test ./...
-
-      - name: Build binary
-        shell: bash
-        env:
-          GOOS: ${{ matrix.goos }}
-          GOARCH: ${{ matrix.goarch }}
-          VERSION: ${{ github.ref_name }}
-        run: |
-          mkdir -p bin
-          COMMIT="$(git rev-parse --short HEAD 2>/dev/null || echo none)"
-          DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          MODULE="github.com/Robert27/eggl-cli"
-          LDFLAGS="-X ${MODULE}/cmd.version=${VERSION} -X ${MODULE}/cmd.commit=${COMMIT} -X ${MODULE}/cmd.date=${DATE}"
-          CGO_ENABLED=0 GOOS="$GOOS" GOARCH="$GOARCH" go build -ldflags "$LDFLAGS" -o "bin/${{ matrix.asset }}" .
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.asset }}
-          path: bin/${{ matrix.asset }}
-
-  publish:
-    needs: release
-    if: ${{ always() && !cancelled() }}
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Download artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: bin
-          merge-multiple: true
-
       - name: Generate release notes
         uses: orhun/git-cliff-action@v4
-        id: git-cliff
         with:
           config: cliff.toml
           args: --latest --strip all
         env:
           OUTPUT: RELEASE_NOTES.md
 
-      - name: Create GitHub release
-        uses: softprops/action-gh-release@v2
+      - uses: goreleaser/goreleaser-action@v6
         with:
-          body_path: RELEASE_NOTES.md
-          files: |
-            bin/eggl-linux-x64
-            bin/eggl-linux-arm64
-            bin/eggl-darwin-arm64
-            bin/eggl-win32-x64.exe
+          version: latest
+          args: release --clean --release-notes RELEASE_NOTES.md
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}

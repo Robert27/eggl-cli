@@ -12,7 +12,7 @@ GOOS ?= $(shell go env GOOS)
 GOARCH ?= $(shell go env GOARCH)
 OUTPUT ?= bin/$(BINARY)
 
-.PHONY: build install release-build test clean
+.PHONY: build install release-build release-snapshot test clean
 
 build:
 	go build -ldflags "$(LDFLAGS)" -o bin/$(BINARY) .
@@ -23,6 +23,9 @@ install:
 release-build:
 	@mkdir -p $(dir $(OUTPUT))
 	GOOS=$(GOOS) GOARCH=$(GOARCH) CGO_ENABLED=0 go build -ldflags "$(LDFLAGS)" -o $(OUTPUT) .
+
+release-snapshot:
+	goreleaser release --snapshot --clean
 
 test:
 	go test ./...
