@@ -14,6 +14,7 @@ func TestRootHelp(t *testing.T) {
 		"Available Commands:",
 		"dedash",
 		"doctor",
+		"empty",
 		"Global Flags:",
 		"--verbose",
 	} {
