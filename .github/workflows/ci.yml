@@ -39,7 +39,7 @@ jobs:
         run: go test -race -coverprofile=coverage.out -coverpkg=./cmd/...,./internal/... ./...
 
       - name: Upload coverage
-        uses: codecov/codecov-action@v5
+        uses: codecov/codecov-action@v6
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: coverage.out
