@@ -98,3 +98,131 @@ func TestWriteInit(t *testing.T) {
 		t.Fatal("expected error when config exists")
 	}
 }
+
+func TestDefaultPathXDG(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", dir)
+
+	got := DefaultPath()
+	want := filepath.Join(dir, "eggl", "config.yaml")
+	if got != want {
+		t.Fatalf("DefaultPath() = %q, want %q", got, want)
+	}
+}
+
+func TestDefaultPathHome(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", "")
+	home, err := os.UserHomeDir()
+	if err != nil {
+		t.Skip("UserHomeDir:", err)
+	}
+
+	got := DefaultPath()
+	want := filepath.Join(home, ".config", "eggl", "config.yaml")
+	if got != want {
+		t.Fatalf("DefaultPath() = %q, want %q", got, want)
+	}
+}
+
+func TestProfileAndPortForwardNames(t *testing.T) {
+	cfg := &Config{
+		Profiles: map[string]Profile{
+			"beta":  {KubeContext: "b", TailscaleAccount: "x"},
+			"alpha": {KubeContext: "a", TailscaleAccount: "y"},
+		},
+		PortForwards: map[string]PortForward{
+			"z": {Namespace: "ns", Resource: "svc/x"},
+			"a": {Namespace: "ns", Resource: "svc/y"},
+		},
+	}
+
+	profiles := cfg.ProfileNames()
+	if len(profiles) != 2 {
+		t.Fatalf("ProfileNames len = %d", len(profiles))
+	}
+
+	pfNames := cfg.PortForwardNames()
+	if len(pfNames) != 2 {
+		t.Fatalf("PortForwardNames len = %d", len(pfNames))
+	}
+}
+
+func TestLoadMissingFile(t *testing.T) {
+	_, err := Load(filepath.Join(t.TempDir(), "missing.yaml"))
+	if err == nil {
+		t.Fatal("expected error")
+	}
+}
+
+func TestLoadInvalidYAML(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(path, []byte(":\n\tbad"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_, err := Load(path)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+}
+
+func TestLoadValidationError(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(path, []byte("profiles: {}"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_, err := Load(path)
+	if err == nil {
+		t.Fatal("expected validation error")
+	}
+}
+
+func TestValidateEmptyProfileName(t *testing.T) {
+	cfg := &Config{
+		Profiles: map[string]Profile{
+			"": {KubeContext: "ctx", TailscaleAccount: "x"},
+		},
+	}
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected error for empty profile name")
+	}
+}
+
+func TestValidatePortForwardFields(t *testing.T) {
+	cfg := &Config{
+		Profiles: map[string]Profile{
+			"a": {KubeContext: "ctx", TailscaleAccount: "x"},
+		},
+		PortForwards: map[string]PortForward{
+			"": {Namespace: "ns", Resource: "svc/x"},
+		},
+	}
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected error for empty port_forward name")
+	}
+
+	cfg.PortForwards = map[string]PortForward{
+		"pf": {Namespace: "", Resource: "svc/x"},
+	}
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected error for missing namespace")
+	}
+
+	cfg.PortForwards = map[string]PortForward{
+		"pf": {Namespace: "ns", Resource: ""},
+	}
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected error for missing resource")
+	}
+}
+
+func TestWriteInitParentNotDirectory(t *testing.T) {
+	parent := filepath.Join(t.TempDir(), "blocked")
+	if err := os.WriteFile(parent, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(parent, "config.yaml")
+
+	if err := WriteInit(path); err == nil {
+		t.Fatal("expected error when parent is not a directory")
+	}
+}

@@ -50,6 +50,16 @@ port_forwards:
 	return path
 }
 
+func TestDefaultOptions(t *testing.T) {
+	opts := DefaultOptions("/tmp/config.yaml")
+	if opts.ConfigPath != "/tmp/config.yaml" {
+		t.Fatalf("ConfigPath = %q", opts.ConfigPath)
+	}
+	if opts.Kube == nil {
+		t.Fatal("expected Kube runner")
+	}
+}
+
 func TestList(t *testing.T) {
 	cfg, err := config.Load(testConfig(t))
 	if err != nil {

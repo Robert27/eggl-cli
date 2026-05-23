@@ -75,6 +75,19 @@ func writeTestConfig(t *testing.T) string {
 	return path
 }
 
+func TestDefaultOptions(t *testing.T) {
+	opts := DefaultOptions("/tmp/config.yaml")
+	if opts.ConfigPath != "/tmp/config.yaml" {
+		t.Fatalf("ConfigPath = %q", opts.ConfigPath)
+	}
+	if opts.Kube == nil {
+		t.Fatal("expected Kube runner")
+	}
+	if opts.TS == nil {
+		t.Fatal("expected TS runner")
+	}
+}
+
 func TestShowDetectsProfile(t *testing.T) {
 	path := writeTestConfig(t)
 	report, err := Show(context.Background(), Options{
