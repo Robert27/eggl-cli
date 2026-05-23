@@ -38,11 +38,30 @@ func TestVersion(t *testing.T) {
 	}
 }
 
+func writeFakeDoctorBin(t *testing.T, dir, name string) {
+	t.Helper()
+	path := filepath.Join(dir, name)
+	if err := os.WriteFile(path, []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func doctorPATH(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	for _, name := range []string{"kubectl", "git", "tailscale"} {
+		writeFakeDoctorBin(t, dir, name)
+	}
+	return dir
+}
+
 func TestDoctor(t *testing.T) {
 	t.Setenv("NO_COLOR", "1")
 
 	dir := t.TempDir()
 	t.Setenv("HOME", dir)
+	t.Setenv("PATH", doctorPATH(t))
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 
 	stdout, _, err := runCmd(t, "doctor")
 	if err != nil {
@@ -52,6 +71,11 @@ func TestDoctor(t *testing.T) {
 	if !strings.Contains(stdout, "[ok] go:") {
 		t.Fatalf("expected go check in output, got %q", stdout)
 	}
+	for _, name := range []string{"kubectl", "git", "tailscale"} {
+		if !strings.Contains(stdout, "[ok] "+name+":") {
+			t.Fatalf("expected %s check in output, got %q", name, stdout)
+		}
+	}
 	if !strings.Contains(stdout, "All checks passed") {
 		t.Fatalf("expected success summary in output, got %q", stdout)
 	}
@@ -59,6 +83,8 @@ func TestDoctor(t *testing.T) {
 
 func TestDoctorFailure(t *testing.T) {
 	t.Setenv("NO_COLOR", "1")
+	t.Setenv("PATH", doctorPATH(t))
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 
 	root := t.TempDir()
 	path := filepath.Join(root, "file.txt")
