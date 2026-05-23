@@ -4,20 +4,30 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"gopkg.in/yaml.v3"
 )
 
+var portMappingRE = regexp.MustCompile(`^\d+:\d+$`)
+
 const fileName = "config.yaml"
 
 type Config struct {
-	Profiles map[string]Profile `yaml:"profiles"`
+	Profiles     map[string]Profile     `yaml:"profiles"`
+	PortForwards map[string]PortForward `yaml:"port_forwards"`
 }
 
 type Profile struct {
 	KubeContext      string `yaml:"kube_context"`
 	TailscaleAccount string `yaml:"tailscale_account"`
+}
+
+type PortForward struct {
+	Namespace string   `yaml:"namespace"`
+	Resource  string   `yaml:"resource"`
+	Ports     []string `yaml:"ports"`
 }
 
 func DefaultPath() string {
@@ -66,12 +76,37 @@ func (c *Config) Validate() error {
 		}
 	}
 
+	for name, pf := range c.PortForwards {
+		if strings.TrimSpace(name) == "" {
+			return fmt.Errorf("config: port_forward name must not be empty")
+		}
+		if strings.TrimSpace(pf.Namespace) == "" {
+			return fmt.Errorf("config: port_forward %q: namespace is required", name)
+		}
+		if strings.TrimSpace(pf.Resource) == "" {
+			return fmt.Errorf("config: port_forward %q: resource is required", name)
+		}
+		for _, port := range pf.Ports {
+			if !portMappingRE.MatchString(strings.TrimSpace(port)) {
+				return fmt.Errorf("config: port_forward %q: port %q must be local:remote (e.g. 8080:80)", name, port)
+			}
+		}
+	}
+
 	return nil
 }
 
 func (c *Config) ProfileNames() []string {
 	names := make([]string, 0, len(c.Profiles))
 	for name := range c.Profiles {
+		names = append(names, name)
+	}
+	return names
+}
+
+func (c *Config) PortForwardNames() []string {
+	names := make([]string, 0, len(c.PortForwards))
+	for name := range c.PortForwards {
 		names = append(names, name)
 	}
 	return names
@@ -88,6 +123,12 @@ func InitTemplate() string {
 #   beta:
 #     kube_context: context-b
 #     tailscale_account: a7f2
+#
+# port_forwards (optional) — use with: eggl pf <name>
+#   longhorn:
+#     namespace: longhorn-system
+#     resource: svc/longhorn-frontend
+#     ports: ["8080:80"]
 
 profiles:
   example-a:

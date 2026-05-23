@@ -28,6 +28,10 @@ func (f *fakeKube) UseContext(_ context.Context, name string) error {
 	return nil
 }
 
+func (f *fakeKube) PortForward(context.Context, []string) error {
+	return nil
+}
+
 type fakeTS struct {
 	accounts  []tailscale.Account
 	switchErr error

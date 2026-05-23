@@ -43,6 +43,8 @@ eggl doctor --verbose
 eggl env init
 eggl env show
 eggl env toggle
+eggl pf list
+eggl pf longhorn
 eggl completion zsh
 ```
 
@@ -61,6 +63,20 @@ profiles:
 ```
 
 `tailscale_account` can be an account id, tailnet name, or email from `tailscale switch --list`. `toggle` requires exactly two profiles.
+
+### Port-forwards (`eggl pf`)
+
+Named kubectl port-forwards in the same config file (uses the active kubectl context):
+
+```yaml
+port_forwards:
+  longhorn:
+    namespace: longhorn-system
+    resource: svc/longhorn-frontend
+    ports: ["8080:80"]
+```
+
+`ports` is optional (defaults to `8080:80`). Run `eggl pf list` or `eggl pf longhorn` (blocks until Ctrl+C).
 
 ## Shell completion
 
