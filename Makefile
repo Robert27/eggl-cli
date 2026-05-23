@@ -32,8 +32,10 @@ release-snapshot: $(GORELEASER)
 $(GORELEASER):
 	go install github.com/goreleaser/goreleaser/v2@latest
 
+COVERPKG := ./cmd/...,./internal/...
+
 test:
-	go test -race -coverprofile=coverage.out ./...
+	go test -race -coverprofile=coverage.out -coverpkg=$(COVERPKG) ./...
 	@go tool cover -func=coverage.out | tail -1
 
 fmt:
