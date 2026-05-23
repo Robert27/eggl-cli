@@ -1,5 +1,11 @@
 # eggl-cli
 
+[![Release](https://img.shields.io/github/v/release/Robert27/eggl-cli?style=flat-square)](https://github.com/Robert27/eggl-cli/releases)
+[![CI](https://github.com/Robert27/eggl-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/Robert27/eggl-cli/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/Robert27/eggl-cli/graph/badge.svg)](https://codecov.io/gh/Robert27/eggl-cli)
+[![Go](https://img.shields.io/github/go-mod/go-version/Robert27/eggl-cli?style=flat-square)](https://go.dev/)
+[![License](https://img.shields.io/github/license/Robert27/eggl-cli?style=flat-square)](LICENSE)
+
 A general-purpose helper CLI built with Go and [Cobra](https://github.com/spf13/cobra).
 
 ## Install
