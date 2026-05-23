@@ -3,11 +3,14 @@ package dedash
 import (
 	"context"
 	"fmt"
+	"io"
 	"io/fs"
 	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/Robert27/eggl-cli/internal/ui"
 )
 
 const emDash = "\u2014"
@@ -18,8 +21,11 @@ const MaxFileSize = 50 << 20
 type Options struct {
 	Root          string
 	DryRun        bool
+	Yes           bool
 	Extensions    []string
 	IncludeHidden bool
+	Input         io.Reader
+	Output        io.Writer
 }
 
 type FileChange struct {
@@ -28,10 +34,18 @@ type FileChange struct {
 }
 
 type Report struct {
-	Scanned  int
-	Modified int
-	Skipped  int
-	Changes  []FileChange
+	Scanned   int
+	Modified  int
+	Skipped   int
+	Changes   []FileChange
+	Cancelled bool
+}
+
+type pendingChange struct {
+	absPath string
+	content []byte
+	mode    fs.FileMode
+	change  FileChange
 }
 
 func Run(ctx context.Context, opts Options) (*Report, error) {
@@ -55,6 +69,8 @@ func Run(ctx context.Context, opts Options) (*Report, error) {
 	extensions := normalizeExtensions(opts.Extensions)
 
 	report := &Report{}
+	var pending []pendingChange
+
 	slog.Debug("scanning directory",
 		"root", root,
 		"dry_run", opts.DryRun,
@@ -116,7 +132,7 @@ func Run(ctx context.Context, opts Options) (*Report, error) {
 
 		report.Scanned++
 
-		change, err := processFile(path, opts.DryRun)
+		change, content, mode, err := analyzeFile(path)
 		if err != nil {
 			slog.Debug("skipping file", "path", path, "reason", err.Error())
 			report.Skipped++
@@ -127,13 +143,20 @@ func Run(ctx context.Context, opts Options) (*Report, error) {
 			return nil
 		}
 
-		report.Modified++
 		relPath, relErr := filepath.Rel(root, path)
 		if relErr != nil {
 			relPath = path
 		}
 		change.Path = relPath
-		report.Changes = append(report.Changes, *change)
+
+		report.Modified++
+		report.Changes = append(report.Changes, change)
+		pending = append(pending, pendingChange{
+			absPath: path,
+			content: content,
+			mode:    mode,
+			change:  change,
+		})
 		slog.Debug("found em-dashes",
 			"path", relPath,
 			"replacements", change.Replacements,
@@ -151,42 +174,75 @@ func Run(ctx context.Context, opts Options) (*Report, error) {
 		"skipped", report.Skipped,
 	)
 
+	total := TotalReplacements(report)
+	if opts.DryRun || total == 0 {
+		return report, nil
+	}
+
+	if !opts.Yes {
+		in := opts.Input
+		if in == nil {
+			in = os.Stdin
+		}
+		out := opts.Output
+		if out == nil {
+			out = os.Stderr
+		}
+		if !ui.IsInteractiveInput(in) {
+			return report, fmt.Errorf("not a terminal; use --yes to confirm writes")
+		}
+
+		prompt := fmt.Sprintf("This will replace %d em-dashes in %d files. Continue? [y/N]: ", total, report.Modified)
+		ok, err := ui.ConfirmPrompt(out, in, prompt)
+		if err != nil {
+			return report, err
+		}
+		if !ok {
+			report.Cancelled = true
+			return report, nil
+		}
+	}
+
+	for _, item := range pending {
+		if err := writeFile(item.absPath, item.content, item.mode); err != nil {
+			return report, err
+		}
+	}
+
 	return report, nil
 }
 
-func processFile(path string, dryRun bool) (*FileChange, error) {
+func analyzeFile(path string) (FileChange, []byte, fs.FileMode, error) {
 	info, err := os.Stat(path)
 	if err != nil {
-		return nil, err
+		return FileChange{}, nil, 0, err
 	}
 	if info.Size() > MaxFileSize {
-		return nil, fmt.Errorf("file too large")
+		return FileChange{}, nil, 0, fmt.Errorf("file too large")
 	}
 
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return nil, err
+		return FileChange{}, nil, 0, err
 	}
 
 	if isBinaryContent(data) {
-		return nil, fmt.Errorf("binary content")
+		return FileChange{}, nil, 0, fmt.Errorf("binary content")
 	}
 
 	content := string(data)
 	if !strings.Contains(content, emDash) {
-		return &FileChange{Path: path, Replacements: 0}, nil
+		return FileChange{Path: path, Replacements: 0}, nil, info.Mode(), nil
 	}
 
 	replaced := strings.ReplaceAll(content, emDash, "-")
 	count := strings.Count(content, emDash)
 
-	if !dryRun {
-		if err := os.WriteFile(path, []byte(replaced), info.Mode()); err != nil {
-			return nil, err
-		}
-	}
+	return FileChange{Path: path, Replacements: count}, []byte(replaced), info.Mode(), nil
+}
 
-	return &FileChange{Path: path, Replacements: count}, nil
+func writeFile(path string, content []byte, mode fs.FileMode) error {
+	return os.WriteFile(path, content, mode)
 }
 
 func TotalReplacements(report *Report) int {

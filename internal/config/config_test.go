@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -236,5 +237,73 @@ func TestWriteInitParentNotDirectory(t *testing.T) {
 
 	if err := WriteInit(path); err == nil {
 		t.Fatal("expected error when parent is not a directory")
+	}
+}
+
+func TestLoadOversizedConfig(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(path, make([]byte, MaxConfigSize+1), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := Load(path)
+	if err == nil {
+		t.Fatal("expected error for oversized config")
+	}
+	if !strings.Contains(err.Error(), "exceeds maximum size") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestValidateInvalidNamespace(t *testing.T) {
+	cfg := &Config{
+		Profiles: map[string]Profile{
+			"a": {KubeContext: "ctx", TailscaleAccount: "x"},
+		},
+		PortForwards: map[string]PortForward{
+			"pf": {Namespace: "INVALID", Resource: "svc/x", Ports: []string{"8080:80"}},
+		},
+	}
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected validation error for invalid namespace")
+	}
+}
+
+func TestValidateInvalidResource(t *testing.T) {
+	cfg := &Config{
+		Profiles: map[string]Profile{
+			"a": {KubeContext: "ctx", TailscaleAccount: "x"},
+		},
+		PortForwards: map[string]PortForward{
+			"pf": {Namespace: "ns", Resource: "not-a-resource", Ports: []string{"8080:80"}},
+		},
+	}
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected validation error for invalid resource")
+	}
+}
+
+func TestValidatePortOutOfRange(t *testing.T) {
+	cfg := &Config{
+		Profiles: map[string]Profile{
+			"a": {KubeContext: "ctx", TailscaleAccount: "x"},
+		},
+		PortForwards: map[string]PortForward{
+			"pf": {Namespace: "ns", Resource: "svc/x", Ports: []string{"0:80"}},
+		},
+	}
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected validation error for port out of range")
+	}
+}
+
+func TestValidateKubeContextLeadingDash(t *testing.T) {
+	cfg := &Config{
+		Profiles: map[string]Profile{
+			"a": {KubeContext: "-bad", TailscaleAccount: "x"},
+		},
+	}
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected validation error for kube_context starting with dash")
 	}
 }

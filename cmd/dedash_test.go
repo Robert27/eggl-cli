@@ -53,7 +53,7 @@ func TestDedashExtFilter(t *testing.T) {
 		}
 	}
 
-	stdout, _, err := runCmd(t, "dedash", "--path", root, "--ext", "md")
+	stdout, _, err := runCmd(t, "dedash", "--path", root, "--ext", "md", "--yes")
 	if err != nil {
 		t.Fatalf("Execute() error = %v", err)
 	}
@@ -86,7 +86,7 @@ func TestDedashWrites(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	stdout, _, err := runCmd(t, "dedash", "--path", root)
+	stdout, _, err := runCmd(t, "dedash", "--path", root, "--yes")
 	if err != nil {
 		t.Fatalf("Execute() error = %v", err)
 	}
@@ -101,5 +101,31 @@ func TestDedashWrites(t *testing.T) {
 	}
 	if string(got) != "hello - world" {
 		t.Fatalf("file content = %q, want %q", got, "hello - world")
+	}
+}
+
+func TestDedashRequiresYesWithoutTTY(t *testing.T) {
+	t.Setenv("NO_COLOR", "1")
+
+	root := t.TempDir()
+	path := filepath.Join(root, "readme.md")
+	if err := os.WriteFile(path, []byte("hello \u2014 world"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	_, stderr, err := runCmdWithIn(t, strings.NewReader(""), "dedash", "--path", root)
+	if err == nil {
+		t.Fatal("expected error when stdin is not a terminal and --yes is not set")
+	}
+	if !strings.Contains(stderr, "not a terminal") && !strings.Contains(err.Error(), "not a terminal") {
+		t.Fatalf("error = %v, stderr = %q", err, stderr)
+	}
+
+	got, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "hello \u2014 world" {
+		t.Fatalf("file should be unchanged, got %q", got)
 	}
 }

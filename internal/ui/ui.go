@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"bufio"
 	"fmt"
 	"io"
 	"os"
@@ -106,6 +107,28 @@ func IsInteractive(w io.Writer) bool {
 	}
 
 	return term.IsTerminal(int(f.Fd()))
+}
+
+func IsInteractiveInput(r io.Reader) bool {
+	f, ok := r.(*os.File)
+	if !ok {
+		return false
+	}
+	return term.IsTerminal(int(f.Fd()))
+}
+
+func ConfirmPrompt(w io.Writer, in io.Reader, prompt string) (bool, error) {
+	if _, err := fmt.Fprint(w, prompt); err != nil {
+		return false, err
+	}
+
+	line, err := bufio.NewReader(in).ReadString('\n')
+	if err != nil && err != io.EOF {
+		return false, err
+	}
+
+	line = strings.TrimSpace(strings.ToLower(line))
+	return line == "y" || line == "yes", nil
 }
 
 func RenderHeader(w io.Writer, title, subtitle string) {

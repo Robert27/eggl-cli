@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"bytes"
+	"io"
 	"testing"
 
 	"github.com/spf13/cobra"
@@ -9,6 +10,10 @@ import (
 )
 
 func runCmd(t *testing.T, args ...string) (stdout, stderr string, err error) {
+	return runCmdWithIn(t, nil, args...)
+}
+
+func runCmdWithIn(t *testing.T, in io.Reader, args ...string) (stdout, stderr string, err error) {
 	t.Helper()
 
 	resetCommandFlags(rootCmd)
@@ -17,6 +22,9 @@ func runCmd(t *testing.T, args ...string) (stdout, stderr string, err error) {
 	var out, errOut bytes.Buffer
 	rootCmd.SetOut(&out)
 	rootCmd.SetErr(&errOut)
+	if in != nil {
+		rootCmd.SetIn(in)
+	}
 
 	err = rootCmd.Execute()
 	return out.String(), errOut.String(), err

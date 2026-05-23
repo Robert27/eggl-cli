@@ -346,3 +346,29 @@ func TestRenderDedashModifiedPlain(t *testing.T) {
 		}
 	}
 }
+
+func TestConfirmPrompt(t *testing.T) {
+	var out bytes.Buffer
+
+	ok, err := ConfirmPrompt(&out, strings.NewReader("yes\n"), "Proceed? ")
+	if err != nil {
+		t.Fatalf("ConfirmPrompt() error = %v", err)
+	}
+	if !ok {
+		t.Fatal("expected yes")
+	}
+
+	ok, err = ConfirmPrompt(&out, strings.NewReader("n\n"), "Proceed? ")
+	if err != nil {
+		t.Fatalf("ConfirmPrompt() error = %v", err)
+	}
+	if ok {
+		t.Fatal("expected no")
+	}
+}
+
+func TestIsInteractiveInput(t *testing.T) {
+	if IsInteractiveInput(strings.NewReader("")) {
+		t.Fatal("expected non-file reader to be non-interactive")
+	}
+}

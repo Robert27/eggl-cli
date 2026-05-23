@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"fmt"
 	"log/slog"
 
 	"github.com/Robert27/eggl-cli/internal/dedash"
@@ -11,6 +12,7 @@ import (
 var (
 	dedashPath          string
 	dedashDryRun        bool
+	dedashYes           bool
 	dedashExtensions    []string
 	dedashIncludeHidden bool
 )
@@ -25,21 +27,32 @@ Files larger than 50 MiB are skipped.
 Use --ext to limit processing to specific file extensions (for example md,txt or .md,.txt).
 Prints a one-line summary plus a list of changed files. Use --dry-run to preview without writing.
 
+When not using --dry-run, you are prompted to confirm before any files are modified.
+Use --yes to skip the prompt (required in non-interactive environments).
+
 With --verbose, stderr logs the scan root, skipped paths, and each file that would be or was modified.`,
 	Example: `  eggl dedash --dry-run
-  eggl dedash --path ./docs
+  eggl dedash --path ./docs --yes
   eggl dedash --ext md,txt --dry-run`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		slog.Debug("running dedash", "path", dedashPath, "dry_run", dedashDryRun, "extensions", dedashExtensions)
+		slog.Debug("running dedash", "path", dedashPath, "dry_run", dedashDryRun, "yes", dedashYes, "extensions", dedashExtensions)
 
 		report, err := dedash.Run(cmd.Context(), dedash.Options{
 			Root:          dedashPath,
 			DryRun:        dedashDryRun,
+			Yes:           dedashYes,
 			Extensions:    dedashExtensions,
 			IncludeHidden: dedashIncludeHidden,
+			Input:         cmd.InOrStdin(),
+			Output:        cmd.ErrOrStderr(),
 		})
 		if err != nil {
 			return err
+		}
+
+		if report.Cancelled {
+			fmt.Fprintln(cmd.ErrOrStderr(), "cancelled")
+			return nil
 		}
 
 		changes := make([]ui.DedashChange, len(report.Changes))
@@ -65,6 +78,7 @@ With --verbose, stderr logs the scan root, skipped paths, and each file that wou
 func init() {
 	dedashCmd.Flags().StringVar(&dedashPath, "path", ".", "Directory tree to scan (default: current directory)")
 	dedashCmd.Flags().BoolVar(&dedashDryRun, "dry-run", false, "Report changes without writing files")
+	dedashCmd.Flags().BoolVarP(&dedashYes, "yes", "y", false, "Confirm writes without prompting (required when stdin is not a terminal)")
 	dedashCmd.Flags().StringSliceVar(&dedashExtensions, "ext", nil, "Only process files with these extensions (comma-separated or repeatable, e.g. md,txt)")
 	dedashCmd.Flags().BoolVar(&dedashIncludeHidden, "include-hidden", false, "Process dotfiles and dot-directories")
 	rootCmd.AddCommand(dedashCmd)

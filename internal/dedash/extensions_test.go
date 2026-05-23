@@ -44,7 +44,7 @@ func TestRunFiltersByExtension(t *testing.T) {
 		}
 	}
 
-	report, err := Run(t.Context(), Options{Root: root, Extensions: []string{"md", "txt"}})
+	report, err := Run(t.Context(), Options{Root: root, Extensions: []string{"md", "txt"}, Yes: true})
 	if err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}

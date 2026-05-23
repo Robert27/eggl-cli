@@ -12,6 +12,10 @@ func writeTestFile(root, name, content string) error {
 	return os.WriteFile(filepath.Join(root, name), []byte(content), 0o644)
 }
 
+func defaultOpts(root string) Options {
+	return Options{Root: root, Yes: true}
+}
+
 func readTestFile(root, name string) (string, error) {
 	data, err := os.ReadFile(filepath.Join(root, name))
 	if err != nil {
@@ -27,7 +31,7 @@ func TestRunReplacesEmDash(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	report, err := Run(context.Background(), Options{Root: root})
+	report, err := Run(context.Background(), defaultOpts(root))
 	if err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}
@@ -81,7 +85,7 @@ func TestRunSkipsBinaryFile(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	report, err := Run(context.Background(), Options{Root: root})
+	report, err := Run(context.Background(), defaultOpts(root))
 	if err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}
@@ -104,7 +108,7 @@ func TestRunSkipsNodeModules(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	report, err := Run(context.Background(), Options{Root: root})
+	report, err := Run(context.Background(), defaultOpts(root))
 	if err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}
@@ -133,7 +137,7 @@ func TestRunDoesNotReplaceEnDash(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	report, err := Run(context.Background(), Options{Root: root})
+	report, err := Run(context.Background(), defaultOpts(root))
 	if err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}
@@ -189,7 +193,7 @@ func TestRunSkipsBuildOutputDirs(t *testing.T) {
 		}
 	}
 
-	report, err := Run(context.Background(), Options{Root: root})
+	report, err := Run(context.Background(), defaultOpts(root))
 	if err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}
@@ -211,7 +215,7 @@ func TestRunSkipsJarFiles(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	report, err := Run(context.Background(), Options{Root: root})
+	report, err := Run(context.Background(), defaultOpts(root))
 	if err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}
@@ -249,7 +253,7 @@ func TestRunScannedWithoutEmDash(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	report, err := Run(context.Background(), Options{Root: root})
+	report, err := Run(context.Background(), defaultOpts(root))
 	if err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}
@@ -272,7 +276,7 @@ func TestRunMultipleFiles(t *testing.T) {
 		}
 	}
 
-	report, err := Run(context.Background(), Options{Root: root})
+	report, err := Run(context.Background(), defaultOpts(root))
 	if err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}
@@ -295,7 +299,7 @@ func TestRunSkipsNonRegularFile(t *testing.T) {
 		t.Skip("symlinks not supported:", err)
 	}
 
-	report, err := Run(context.Background(), Options{Root: root})
+	report, err := Run(context.Background(), defaultOpts(root))
 	if err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}
@@ -335,7 +339,7 @@ func TestRunSkipsHiddenFile(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	report, err := Run(context.Background(), Options{Root: root})
+	report, err := Run(context.Background(), defaultOpts(root))
 	if err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}
@@ -353,7 +357,7 @@ func TestRunIncludeHidden(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	report, err := Run(context.Background(), Options{Root: root, IncludeHidden: true})
+	report, err := Run(context.Background(), Options{Root: root, IncludeHidden: true, Yes: true})
 	if err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}
@@ -372,7 +376,7 @@ func TestRunSkipsOversizedFile(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	report, err := Run(context.Background(), Options{Root: root})
+	report, err := Run(context.Background(), defaultOpts(root))
 	if err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}
@@ -393,8 +397,26 @@ func TestRunRespectsContextCancel(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	_, err := Run(ctx, Options{Root: root})
+	_, err := Run(ctx, defaultOpts(root))
 	if err != context.Canceled {
 		t.Fatalf("Run() error = %v, want context.Canceled", err)
+	}
+}
+
+func TestRunNotTerminalRequiresYes(t *testing.T) {
+	root := t.TempDir()
+	if err := writeTestFile(root, "readme.md", "hello \u2014 world"); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := Run(context.Background(), Options{
+		Root:  root,
+		Input: strings.NewReader(""),
+	})
+	if err == nil {
+		t.Fatal("expected error when stdin is not a terminal")
+	}
+	if !strings.Contains(err.Error(), "not a terminal") {
+		t.Fatalf("error = %v", err)
 	}
 }

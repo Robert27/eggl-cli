@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os/exec"
+	"sort"
 	"strings"
 )
 
@@ -82,16 +83,29 @@ func ResolveAccount(ref string, accounts []Account) (Account, error) {
 		return Account{}, fmt.Errorf("empty tailscale account reference")
 	}
 
+	var matches []Account
 	for _, a := range accounts {
 		if strings.EqualFold(a.ID, ref) ||
 			strings.EqualFold(a.Tailnet, ref) ||
 			strings.EqualFold(a.Account, ref) ||
 			strings.EqualFold(a.Nickname, ref) {
-			return a, nil
+			matches = append(matches, a)
 		}
 	}
 
-	return Account{}, fmt.Errorf("tailscale account %q not found in switch --list", ref)
+	switch len(matches) {
+	case 0:
+		return Account{}, fmt.Errorf("tailscale account %q not found in switch --list", ref)
+	case 1:
+		return matches[0], nil
+	default:
+		ids := make([]string, len(matches))
+		for i, a := range matches {
+			ids[i] = a.ID
+		}
+		sort.Strings(ids)
+		return Account{}, fmt.Errorf("ambiguous tailscale account reference %q: matches %s", ref, strings.Join(ids, ", "))
+	}
 }
 
 func CurrentAccount(accounts []Account) (Account, error) {

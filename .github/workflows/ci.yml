@@ -32,6 +32,9 @@ jobs:
       - name: Vet
         run: go vet ./...
 
+      - name: Govulncheck
+        run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+
       - name: Test
         run: go test -race -coverprofile=coverage.out -coverpkg=./cmd/...,./internal/... ./...
 

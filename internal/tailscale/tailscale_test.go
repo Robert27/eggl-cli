@@ -193,6 +193,24 @@ func TestResolveAccountNotFound(t *testing.T) {
 	}
 }
 
+func TestResolveAccountAmbiguous(t *testing.T) {
+	accounts := []Account{
+		{ID: "aaa1", Nickname: "shared"},
+		{ID: "bbb2", Nickname: "shared"},
+	}
+
+	_, err := ResolveAccount("shared", accounts)
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.Contains(err.Error(), "ambiguous tailscale account reference") {
+		t.Fatalf("error = %v", err)
+	}
+	if !strings.Contains(err.Error(), "aaa1") || !strings.Contains(err.Error(), "bbb2") {
+		t.Fatalf("error should list matching ids, got %v", err)
+	}
+}
+
 func TestCurrentAccountNoneSelected(t *testing.T) {
 	accounts := []Account{{ID: "a", Selected: false}}
 	_, err := CurrentAccount(accounts)

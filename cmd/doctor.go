@@ -16,7 +16,8 @@ var doctorCmd = &cobra.Command{
 	Short: "Check local environment and dependencies",
 	Long: `Run quick sanity checks for tools and paths eggl relies on.
 
-Checks the Go runtime, platform (GOOS/GOARCH), and that a home directory is accessible.
+Checks the Go runtime, platform (GOOS/GOARCH), home directory, kubectl, git,
+tailscale on PATH, and eggl config validity (when present).
 Use --check-path to validate a different directory instead of $HOME.
 Exits with an error when any check fails.
 

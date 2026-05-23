@@ -5,7 +5,10 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"os/exec"
 	"runtime"
+
+	"github.com/Robert27/eggl-cli/internal/config"
 )
 
 type Options struct {
@@ -28,7 +31,7 @@ func Run(ctx context.Context, opts Options) (*Report, error) {
 
 	slog.Debug("starting environment checks", "check_path", opts.CheckPath)
 
-	checks := make([]Check, 0, 3)
+	checks := make([]Check, 0, 7)
 
 	slog.Debug("running check", "name", "go")
 	checks = append(checks, Check{
@@ -91,7 +94,80 @@ func Run(ctx context.Context, opts Options) (*Report, error) {
 		"detail", homeCheck.Detail,
 	)
 
+	for _, tool := range []string{"kubectl", "git", "tailscale"} {
+		check := toolCheck(tool)
+		checks = append(checks, check)
+		slog.Debug("check result",
+			"name", check.Name,
+			"ok", check.OK,
+			"status", check.Status,
+			"detail", check.Detail,
+		)
+	}
+
+	configCheck := configCheck()
+	checks = append(checks, configCheck)
+	slog.Debug("check result",
+		"name", configCheck.Name,
+		"ok", configCheck.OK,
+		"status", configCheck.Status,
+		"detail", configCheck.Detail,
+	)
+
 	return &Report{Checks: checks}, nil
+}
+
+func toolCheck(name string) Check {
+	path, err := exec.LookPath(name)
+	if err != nil {
+		return Check{
+			Name:   name,
+			Status: "missing",
+			Detail: fmt.Sprintf("%s not found on PATH", name),
+			OK:     false,
+		}
+	}
+	return Check{
+		Name:   name,
+		Status: path,
+		Detail: fmt.Sprintf("%s available on PATH", name),
+		OK:     true,
+	}
+}
+
+func configCheck() Check {
+	path := config.DefaultPath()
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		return Check{
+			Name:   "config",
+			Status: "not found",
+			Detail: "run eggl env init",
+			OK:     true,
+		}
+	} else if err != nil {
+		return Check{
+			Name:   "config",
+			Status: "error",
+			Detail: err.Error(),
+			OK:     false,
+		}
+	}
+
+	if _, err := config.Load(path); err != nil {
+		return Check{
+			Name:   "config",
+			Status: "invalid",
+			Detail: err.Error(),
+			OK:     false,
+		}
+	}
+
+	return Check{
+		Name:   "config",
+		Status: path,
+		Detail: "Config file valid",
+		OK:     true,
+	}
 }
 
 func HasFailures(report *Report) bool {
