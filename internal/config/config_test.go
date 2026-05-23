@@ -176,6 +176,18 @@ func TestLoadValidationError(t *testing.T) {
 	}
 }
 
+func TestValidateDuplicateProfileTargets(t *testing.T) {
+	cfg := &Config{
+		Profiles: map[string]Profile{
+			"alpha": {KubeContext: "ctx-a", TailscaleAccount: "b3e1"},
+			"beta":  {KubeContext: "ctx-a", TailscaleAccount: "b3e1"},
+		},
+	}
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected error for duplicate profile targets")
+	}
+}
+
 func TestValidateEmptyProfileName(t *testing.T) {
 	cfg := &Config{
 		Profiles: map[string]Profile{

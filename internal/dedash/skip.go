@@ -162,6 +162,10 @@ var skippedExtensions = map[string]struct{}{
 	".map":    {},
 }
 
+func isHiddenName(name string) bool {
+	return len(name) > 0 && name[0] == '.'
+}
+
 func shouldSkipDir(name string) bool {
 	_, ok := skippedDirs[name]
 	return ok

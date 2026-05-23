@@ -9,9 +9,10 @@ import (
 )
 
 var (
-	dedashPath       string
-	dedashDryRun     bool
-	dedashExtensions []string
+	dedashPath          string
+	dedashDryRun        bool
+	dedashExtensions    []string
+	dedashIncludeHidden bool
 )
 
 var dedashCmd = &cobra.Command{
@@ -19,7 +20,8 @@ var dedashCmd = &cobra.Command{
 	Short: "Replace em-dashes with hyphens in text files",
 	Long: `Recursively scan a directory and replace Unicode em-dashes (—) with ASCII hyphens (-) in text files.
 
-Skips binaries, hidden paths, and common non-text directories such as node_modules and .git.
+Skips binaries, dotfiles and dot-directories (unless --include-hidden), and common non-text directories such as node_modules and .git.
+Files larger than 50 MiB are skipped.
 Use --ext to limit processing to specific file extensions (for example md,txt or .md,.txt).
 Prints a one-line summary plus a list of changed files. Use --dry-run to preview without writing.
 
@@ -31,9 +33,10 @@ With --verbose, stderr logs the scan root, skipped paths, and each file that wou
 		slog.Debug("running dedash", "path", dedashPath, "dry_run", dedashDryRun, "extensions", dedashExtensions)
 
 		report, err := dedash.Run(cmd.Context(), dedash.Options{
-			Root:       dedashPath,
-			DryRun:     dedashDryRun,
-			Extensions: dedashExtensions,
+			Root:          dedashPath,
+			DryRun:        dedashDryRun,
+			Extensions:    dedashExtensions,
+			IncludeHidden: dedashIncludeHidden,
 		})
 		if err != nil {
 			return err
@@ -63,5 +66,6 @@ func init() {
 	dedashCmd.Flags().StringVar(&dedashPath, "path", ".", "Directory tree to scan (default: current directory)")
 	dedashCmd.Flags().BoolVar(&dedashDryRun, "dry-run", false, "Report changes without writing files")
 	dedashCmd.Flags().StringSliceVar(&dedashExtensions, "ext", nil, "Only process files with these extensions (comma-separated or repeatable, e.g. md,txt)")
+	dedashCmd.Flags().BoolVar(&dedashIncludeHidden, "include-hidden", false, "Process dotfiles and dot-directories")
 	rootCmd.AddCommand(dedashCmd)
 }

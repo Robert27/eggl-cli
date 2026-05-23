@@ -325,3 +325,76 @@ func TestRunFileNotDirectory(t *testing.T) {
 		t.Fatalf("expected not a directory error, got %v", err)
 	}
 }
+
+func TestRunSkipsHiddenFile(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, ".env"), []byte("secret \u2014 value"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "visible.md"), []byte("hello \u2014 world"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	report, err := Run(context.Background(), Options{Root: root})
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if report.Scanned != 1 {
+		t.Fatalf("Scanned = %d, want 1", report.Scanned)
+	}
+	if report.Skipped != 1 {
+		t.Fatalf("Skipped = %d, want 1 (.env)", report.Skipped)
+	}
+}
+
+func TestRunIncludeHidden(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, ".env"), []byte("secret \u2014 value"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	report, err := Run(context.Background(), Options{Root: root, IncludeHidden: true})
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if report.Modified != 1 {
+		t.Fatalf("Modified = %d, want 1", report.Modified)
+	}
+}
+
+func TestRunSkipsOversizedFile(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "big.md")
+	if err := os.WriteFile(path, []byte("\u2014"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Truncate(path, MaxFileSize+1); err != nil {
+		t.Fatal(err)
+	}
+
+	report, err := Run(context.Background(), Options{Root: root})
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if report.Scanned != 0 {
+		t.Fatalf("Scanned = %d, want 0", report.Scanned)
+	}
+	if report.Skipped != 1 {
+		t.Fatalf("Skipped = %d, want 1", report.Skipped)
+	}
+}
+
+func TestRunRespectsContextCancel(t *testing.T) {
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "readme.md"), []byte("hello \u2014 world"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err := Run(ctx, Options{Root: root})
+	if err != context.Canceled {
+		t.Fatalf("Run() error = %v, want context.Canceled", err)
+	}
+}

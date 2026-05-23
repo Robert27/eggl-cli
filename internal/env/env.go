@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"sort"
+	"strings"
 
 	"github.com/Robert27/eggl-cli/internal/config"
 	"github.com/Robert27/eggl-cli/internal/kube"
@@ -69,7 +70,12 @@ func Show(ctx context.Context, opts Options) (*Report, error) {
 		Profiles:   profileInfos(cfg),
 	}
 
-	report.ActiveProfile, report.Unknown = detectProfile(cfg, state, accounts)
+	active, unknown, err := detectProfile(cfg, state, accounts)
+	if err != nil {
+		return nil, err
+	}
+	report.ActiveProfile = active
+	report.Unknown = unknown
 	return report, nil
 }
 
@@ -102,7 +108,10 @@ func Toggle(ctx context.Context, opts Options) (*SwitchResult, error) {
 		return nil, err
 	}
 
-	active, unknown := detectProfile(cfg, state, accounts)
+	active, unknown, err := detectProfile(cfg, state, accounts)
+	if err != nil {
+		return nil, err
+	}
 	if unknown {
 		return nil, fmt.Errorf("current kube context and tailscale account do not match any profile; use `eggl env use <name>` (kube=%q, tailscale=%s)",
 			state.KubeContext, tailscale.FormatAccount(findCurrentAccount(accounts)))
@@ -154,17 +163,27 @@ func readState(ctx context.Context, opts Options) (State, []tailscale.Account, e
 	}, accounts, nil
 }
 
-func detectProfile(cfg *config.Config, state State, accounts []tailscale.Account) (string, bool) {
+func detectProfile(cfg *config.Config, state State, accounts []tailscale.Account) (string, bool, error) {
+	var matches []string
 	for name, profile := range cfg.Profiles {
 		tsAccount, err := tailscale.ResolveAccount(profile.TailscaleAccount, accounts)
 		if err != nil {
 			continue
 		}
 		if profile.KubeContext == state.KubeContext && tsAccount.ID == state.TailscaleID {
-			return name, false
+			matches = append(matches, name)
 		}
 	}
-	return "", true
+
+	switch len(matches) {
+	case 0:
+		return "", true, nil
+	case 1:
+		return matches[0], false, nil
+	default:
+		sort.Strings(matches)
+		return "", false, fmt.Errorf("ambiguous profile match for current state: %s", strings.Join(matches, ", "))
+	}
 }
 
 func applyProfile(ctx context.Context, opts Options, cfg *config.Config, name string, profile config.Profile) (*SwitchResult, error) {
@@ -173,7 +192,10 @@ func applyProfile(ctx context.Context, opts Options, cfg *config.Config, name st
 		return nil, err
 	}
 
-	active, _ := detectProfile(cfg, state, accounts)
+	active, _, err := detectProfile(cfg, state, accounts)
+	if err != nil {
+		return nil, err
+	}
 
 	targetTS, err := tailscale.ResolveAccount(profile.TailscaleAccount, accounts)
 	if err != nil {
@@ -193,23 +215,23 @@ func applyProfile(ctx context.Context, opts Options, cfg *config.Config, name st
 
 	var applied []string
 
-	if state.TailscaleID != targetTS.ID {
-		slog.Debug("switching tailscale account", "from", state.TailscaleID, "to", targetTS.ID)
-		if err := opts.TS.Switch(ctx, targetTS.ID); err != nil {
-			return result, err
-		}
-		applied = append(applied, "tailscale")
-	}
-
 	if state.KubeContext != profile.KubeContext {
 		slog.Debug("switching kube context", "from", state.KubeContext, "to", profile.KubeContext)
 		if err := opts.Kube.UseContext(ctx, profile.KubeContext); err != nil {
-			if len(applied) > 0 {
-				return result, fmt.Errorf("%w (tailscale already switched to %s)", err, targetTS.ID)
-			}
 			return result, err
 		}
 		applied = append(applied, "kube")
+	}
+
+	if state.TailscaleID != targetTS.ID {
+		slog.Debug("switching tailscale account", "from", state.TailscaleID, "to", targetTS.ID)
+		if err := opts.TS.Switch(ctx, targetTS.ID); err != nil {
+			if len(applied) > 0 {
+				return result, fmt.Errorf("%w (kube context already switched to %q)", err, profile.KubeContext)
+			}
+			return result, err
+		}
+		applied = append(applied, "tailscale")
 	}
 
 	if len(applied) == 0 {

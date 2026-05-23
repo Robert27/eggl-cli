@@ -144,16 +144,68 @@ func TestToggleUnknownState(t *testing.T) {
 
 func TestUsePartialFailure(t *testing.T) {
 	path := writeTestConfig(t)
+	ft := &fakeTS{accounts: testAccounts(), switchErr: errors.New("tailscale failed")}
+	fk := &fakeKube{context: "ctx-a"}
+
 	_, err := Use(context.Background(), Options{
 		ConfigPath: path,
-		Kube:       &fakeKube{context: "ctx-a", useErr: errors.New("kube failed")},
-		TS:         &fakeTS{accounts: testAccounts()},
+		Kube:       fk,
+		TS:         ft,
 	}, "beta")
 	if err == nil {
 		t.Fatal("expected error")
 	}
-	if got := err.Error(); got == "" || !strings.Contains(got, "tailscale already switched") {
-		t.Fatalf("error = %q, want tailscale partial failure message", got)
+	if got := err.Error(); !strings.Contains(got, "kube context already switched") {
+		t.Fatalf("error = %q, want kube partial failure message", got)
+	}
+	if fk.context != "ctx-b" {
+		t.Fatalf("kube context = %q, want ctx-b", fk.context)
+	}
+	if !accountSelected(ft.accounts, "b3e1") {
+		t.Fatal("tailscale should remain on alpha account")
+	}
+}
+
+func TestUseKubeFailureLeavesTailscale(t *testing.T) {
+	path := writeTestConfig(t)
+	ft := &fakeTS{accounts: testAccounts()}
+	_, err := Use(context.Background(), Options{
+		ConfigPath: path,
+		Kube:       &fakeKube{context: "ctx-a", useErr: errors.New("kube failed")},
+		TS:         ft,
+	}, "beta")
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if strings.Contains(err.Error(), "already switched") {
+		t.Fatalf("unexpected partial switch: %v", err)
+	}
+	if !accountSelected(ft.accounts, "b3e1") {
+		t.Fatal("tailscale should remain on alpha account")
+	}
+}
+
+func TestShowAmbiguousProfile(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config.yaml")
+	content := `profiles:
+  alpha:
+    kube_context: ctx-a
+    tailscale_account: b3e1
+  also-alpha:
+    kube_context: ctx-a
+    tailscale_account: example-alpha.internal
+`
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := Show(context.Background(), Options{
+		ConfigPath: path,
+		Kube:       &fakeKube{context: "ctx-a"},
+		TS:         &fakeTS{accounts: testAccounts()},
+	})
+	if err == nil || !strings.Contains(err.Error(), "ambiguous profile match") {
+		t.Fatalf("Show() error = %v, want ambiguous profile match", err)
 	}
 }
 

@@ -12,10 +12,14 @@ import (
 
 const emDash = "\u2014"
 
+// MaxFileSize is the largest regular file dedash will read (50 MiB).
+const MaxFileSize = 50 << 20
+
 type Options struct {
-	Root       string
-	DryRun     bool
-	Extensions []string
+	Root          string
+	DryRun        bool
+	Extensions    []string
+	IncludeHidden bool
 }
 
 type FileChange struct {
@@ -31,7 +35,9 @@ type Report struct {
 }
 
 func Run(ctx context.Context, opts Options) (*Report, error) {
-	_ = ctx
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
 
 	root, err := filepath.Abs(opts.Root)
 	if err != nil {
@@ -49,23 +55,43 @@ func Run(ctx context.Context, opts Options) (*Report, error) {
 	extensions := normalizeExtensions(opts.Extensions)
 
 	report := &Report{}
-	slog.Debug("scanning directory", "root", root, "dry_run", opts.DryRun, "extensions", extensions)
+	slog.Debug("scanning directory",
+		"root", root,
+		"dry_run", opts.DryRun,
+		"extensions", extensions,
+		"include_hidden", opts.IncludeHidden,
+	)
 
 	err = filepath.WalkDir(root, func(path string, d fs.DirEntry, walkErr error) error {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		if walkErr != nil {
 			return walkErr
 		}
 
 		if d.IsDir() {
-			if path != root && shouldSkipDir(d.Name()) {
-				slog.Debug("skipping directory", "path", path, "reason", "ignored directory name")
-				return filepath.SkipDir
+			if path != root {
+				if !opts.IncludeHidden && isHiddenName(d.Name()) {
+					slog.Debug("skipping directory", "path", path, "reason", "hidden path")
+					return filepath.SkipDir
+				}
+				if shouldSkipDir(d.Name()) {
+					slog.Debug("skipping directory", "path", path, "reason", "ignored directory name")
+					return filepath.SkipDir
+				}
 			}
 			return nil
 		}
 
 		if !d.Type().IsRegular() {
 			slog.Debug("skipping file", "path", path, "reason", "not a regular file")
+			report.Skipped++
+			return nil
+		}
+
+		if !opts.IncludeHidden && isHiddenName(d.Name()) {
+			slog.Debug("skipping file", "path", path, "reason", "hidden path")
 			report.Skipped++
 			return nil
 		}
@@ -78,6 +104,12 @@ func Run(ctx context.Context, opts Options) (*Report, error) {
 
 		if !matchesExtension(d.Name(), extensions) {
 			slog.Debug("skipping file", "path", path, "reason", "extension not included")
+			report.Skipped++
+			return nil
+		}
+
+		if fi, err := d.Info(); err == nil && fi.Size() > MaxFileSize {
+			slog.Debug("skipping file", "path", path, "reason", "file too large", "size", fi.Size())
 			report.Skipped++
 			return nil
 		}
@@ -123,6 +155,14 @@ func Run(ctx context.Context, opts Options) (*Report, error) {
 }
 
 func processFile(path string, dryRun bool) (*FileChange, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		return nil, err
+	}
+	if info.Size() > MaxFileSize {
+		return nil, fmt.Errorf("file too large")
+	}
+
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -141,10 +181,6 @@ func processFile(path string, dryRun bool) (*FileChange, error) {
 	count := strings.Count(content, emDash)
 
 	if !dryRun {
-		info, err := os.Stat(path)
-		if err != nil {
-			return nil, err
-		}
 		if err := os.WriteFile(path, []byte(replaced), info.Mode()); err != nil {
 			return nil, err
 		}

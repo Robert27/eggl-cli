@@ -64,6 +64,7 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("config: at least one profile is required")
 	}
 
+	seenTargets := make(map[string]string, len(c.Profiles))
 	for name, profile := range c.Profiles {
 		if strings.TrimSpace(name) == "" {
 			return fmt.Errorf("config: profile name must not be empty")
@@ -74,6 +75,12 @@ func (c *Config) Validate() error {
 		if strings.TrimSpace(profile.TailscaleAccount) == "" {
 			return fmt.Errorf("config: profile %q: tailscale_account is required", name)
 		}
+
+		key := profileTargetKey(profile)
+		if other, ok := seenTargets[key]; ok {
+			return fmt.Errorf("config: profiles %q and %q share the same kube_context and tailscale_account", other, name)
+		}
+		seenTargets[key] = name
 	}
 
 	for name, pf := range c.PortForwards {
@@ -94,6 +101,10 @@ func (c *Config) Validate() error {
 	}
 
 	return nil
+}
+
+func profileTargetKey(p Profile) string {
+	return strings.TrimSpace(p.KubeContext) + "\x00" + strings.TrimSpace(p.TailscaleAccount)
 }
 
 func (c *Config) ProfileNames() []string {
