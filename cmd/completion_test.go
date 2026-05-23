@@ -24,3 +24,23 @@ func TestCompletionZsh(t *testing.T) {
 		t.Fatalf("expected zsh completion to reference eggl, got %q", stdout)
 	}
 }
+
+func TestCompletionFish(t *testing.T) {
+	stdout, _, err := runCmd(t, "completion", "fish")
+	if err != nil {
+		t.Fatalf("Execute() error = %v", err)
+	}
+	if !strings.Contains(stdout, "eggl") {
+		t.Fatalf("expected fish completion to reference eggl, got %q", stdout)
+	}
+}
+
+func TestCompletionPowerShell(t *testing.T) {
+	stdout, _, err := runCmd(t, "completion", "powershell")
+	if err != nil {
+		t.Fatalf("Execute() error = %v", err)
+	}
+	if !strings.Contains(stdout, "eggl") {
+		t.Fatalf("expected powershell completion to reference eggl, got %q", stdout)
+	}
+}

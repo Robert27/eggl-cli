@@ -9,6 +9,52 @@ import (
 	"github.com/spf13/cobra"
 )
 
+func TestPFHelp(t *testing.T) {
+	t.Setenv("NO_COLOR", "1")
+
+	output := runHelp(t, "pf")
+
+	for _, want := range []string{
+		"Port-forward configured Kubernetes services",
+		"list         List configured port-forwards",
+		"--config",
+	} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("expected %q in pf help, got %q", want, output)
+		}
+	}
+}
+
+func TestPFRun(t *testing.T) {
+	binDir := t.TempDir()
+	kubectl := filepath.Join(binDir, "kubectl")
+	if err := os.WriteFile(kubectl, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", binDir)
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+	if err := os.WriteFile(path, []byte(`
+profiles:
+  a:
+    kube_context: ctx-a
+    tailscale_account: b3e1
+port_forwards:
+  longhorn:
+    namespace: longhorn-system
+    resource: svc/longhorn-frontend
+    ports: ["8080:80"]
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	_, _, err := runCmd(t, "pf", "--config", path, "longhorn")
+	if err != nil {
+		t.Fatalf("Execute() error = %v", err)
+	}
+}
+
 func TestPFList(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "config.yaml")
