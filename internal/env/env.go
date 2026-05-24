@@ -9,6 +9,7 @@ import (
 
 	"github.com/Robert27/eggl-cli/internal/config"
 	"github.com/Robert27/eggl-cli/internal/kube"
+	"github.com/Robert27/eggl-cli/internal/netbird"
 	"github.com/Robert27/eggl-cli/internal/tailscale"
 )
 
@@ -16,12 +17,19 @@ type Options struct {
 	ConfigPath string
 	Kube       kube.Runner
 	TS         tailscale.Runner
+	NB         netbird.Runner
 }
 
 type State struct {
 	KubeContext      string
 	TailscaleID      string
 	TailscaleTailnet string
+	NetbirdProfile   string
+}
+
+type meshRead struct {
+	accounts []tailscale.Account
+	profiles []netbird.Profile
 }
 
 type Report struct {
@@ -30,12 +38,14 @@ type Report struct {
 	Current       State
 	ConfigPath    string
 	Profiles      []ProfileInfo
+	ShowTailscale bool
+	ShowNetbird   bool
 }
 
 type ProfileInfo struct {
-	Name             string
-	KubeContext      string
-	TailscaleAccount string
+	Name        string
+	KubeContext string
+	Mesh        string
 }
 
 type SwitchResult struct {
@@ -43,6 +53,7 @@ type SwitchResult struct {
 	ToProfile   string
 	From        State
 	To          State
+	MeshVPN     string
 }
 
 func DefaultOptions(configPath string) Options {
@@ -50,6 +61,7 @@ func DefaultOptions(configPath string) Options {
 		ConfigPath: configPath,
 		Kube:       kube.CLI{},
 		TS:         tailscale.CLI{},
+		NB:         netbird.CLI{},
 	}
 }
 
@@ -59,18 +71,20 @@ func Show(ctx context.Context, opts Options) (*Report, error) {
 		return nil, err
 	}
 
-	state, accounts, err := readState(ctx, opts)
+	state, mr, err := readState(ctx, opts, cfg)
 	if err != nil {
 		return nil, err
 	}
 
 	report := &Report{
-		Current:    state,
-		ConfigPath: path,
-		Profiles:   profileInfos(cfg),
+		Current:       state,
+		ConfigPath:    path,
+		Profiles:      profileInfos(cfg),
+		ShowTailscale: cfg.UsesTailscale(),
+		ShowNetbird:   cfg.UsesNetbird(),
 	}
 
-	active, unknown, err := detectProfile(cfg, state, accounts)
+	active, unknown, err := detectProfile(cfg, state, mr)
 	if err != nil {
 		return nil, err
 	}
@@ -103,18 +117,18 @@ func Toggle(ctx context.Context, opts Options) (*SwitchResult, error) {
 		return nil, fmt.Errorf("toggle requires exactly 2 profiles in config (found %d)", len(cfg.Profiles))
 	}
 
-	state, accounts, err := readState(ctx, opts)
+	state, mr, err := readState(ctx, opts, cfg)
 	if err != nil {
 		return nil, err
 	}
 
-	active, unknown, err := detectProfile(cfg, state, accounts)
+	active, unknown, err := detectProfile(cfg, state, mr)
 	if err != nil {
 		return nil, err
 	}
 	if unknown {
-		return nil, fmt.Errorf("current kube context and tailscale account do not match any profile; use `eggl env use <name>` (kube=%q, tailscale=%s)",
-			state.KubeContext, tailscale.FormatAccount(findCurrentAccount(accounts)))
+		return nil, fmt.Errorf("current kube context and mesh VPN state do not match any profile; use `eggl env use <name>` (kube=%q, %s)",
+			state.KubeContext, formatMeshState(cfg, state, mr))
 	}
 
 	names := sortedProfileNames(cfg)
@@ -140,37 +154,53 @@ func loadConfig(path string) (*config.Config, string, error) {
 	return cfg, path, nil
 }
 
-func readState(ctx context.Context, opts Options) (State, []tailscale.Account, error) {
+func readState(ctx context.Context, opts Options, cfg *config.Config) (State, meshRead, error) {
 	kubeCtx, err := opts.Kube.CurrentContext(ctx)
 	if err != nil {
-		return State{}, nil, err
+		return State{}, meshRead{}, err
 	}
 
-	accounts, err := opts.TS.ListAccounts(ctx)
-	if err != nil {
-		return State{}, nil, err
+	state := State{KubeContext: kubeCtx}
+	var mr meshRead
+
+	if cfg.UsesTailscale() {
+		accounts, err := opts.TS.ListAccounts(ctx)
+		if err != nil {
+			return State{}, meshRead{}, err
+		}
+		current, err := tailscale.CurrentAccount(accounts)
+		if err != nil {
+			return State{}, meshRead{}, err
+		}
+		state.TailscaleID = current.ID
+		state.TailscaleTailnet = current.Tailnet
+		mr.accounts = accounts
 	}
 
-	current, err := tailscale.CurrentAccount(accounts)
-	if err != nil {
-		return State{}, accounts, err
+	if cfg.UsesNetbird() {
+		profiles, err := opts.NB.ListProfiles(ctx)
+		if err != nil {
+			return State{}, meshRead{}, err
+		}
+		current, err := netbird.CurrentProfile(profiles)
+		if err != nil {
+			return State{}, meshRead{}, err
+		}
+		state.NetbirdProfile = current.Name
+		mr.profiles = profiles
 	}
 
-	return State{
-		KubeContext:      kubeCtx,
-		TailscaleID:      current.ID,
-		TailscaleTailnet: current.Tailnet,
-	}, accounts, nil
+	return state, mr, nil
 }
 
-func detectProfile(cfg *config.Config, state State, accounts []tailscale.Account) (string, bool, error) {
+func detectProfile(cfg *config.Config, state State, mr meshRead) (string, bool, error) {
 	var matches []string
 	for name, profile := range cfg.Profiles {
-		tsAccount, err := tailscale.ResolveAccount(profile.TailscaleAccount, accounts)
+		ok, err := profileMatches(profile, state, mr)
 		if err != nil {
 			continue
 		}
-		if profile.KubeContext == state.KubeContext && tsAccount.ID == state.TailscaleID {
+		if ok {
 			matches = append(matches, name)
 		}
 	}
@@ -186,18 +216,36 @@ func detectProfile(cfg *config.Config, state State, accounts []tailscale.Account
 	}
 }
 
+func profileMatches(profile config.Profile, state State, mr meshRead) (bool, error) {
+	if profile.KubeContext != state.KubeContext {
+		return false, nil
+	}
+
+	switch profile.VPNType() {
+	case config.VPNTailscale:
+		tsAccount, err := tailscale.ResolveAccount(profile.TailscaleAccount, mr.accounts)
+		if err != nil {
+			return false, err
+		}
+		return tsAccount.ID == state.TailscaleID, nil
+	case config.VPNNetbird:
+		nbProfile, err := netbird.ResolveProfile(profile.NetbirdProfile, mr.profiles)
+		if err != nil {
+			return false, err
+		}
+		return strings.EqualFold(nbProfile.Name, state.NetbirdProfile), nil
+	default:
+		return false, fmt.Errorf("unsupported vpn %q", profile.VPNType())
+	}
+}
+
 func applyProfile(ctx context.Context, opts Options, cfg *config.Config, name string, profile config.Profile) (*SwitchResult, error) {
-	state, accounts, err := readState(ctx, opts)
+	state, mr, err := readState(ctx, opts, cfg)
 	if err != nil {
 		return nil, err
 	}
 
-	active, _, err := detectProfile(cfg, state, accounts)
-	if err != nil {
-		return nil, err
-	}
-
-	targetTS, err := tailscale.ResolveAccount(profile.TailscaleAccount, accounts)
+	active, _, err := detectProfile(cfg, state, mr)
 	if err != nil {
 		return nil, err
 	}
@@ -207,10 +255,9 @@ func applyProfile(ctx context.Context, opts Options, cfg *config.Config, name st
 		ToProfile:   name,
 		From:        state,
 		To: State{
-			KubeContext:      profile.KubeContext,
-			TailscaleID:      targetTS.ID,
-			TailscaleTailnet: targetTS.Tailnet,
+			KubeContext: profile.KubeContext,
 		},
+		MeshVPN: profile.VPNType(),
 	}
 
 	var applied []string
@@ -223,15 +270,42 @@ func applyProfile(ctx context.Context, opts Options, cfg *config.Config, name st
 		applied = append(applied, "kube")
 	}
 
-	if state.TailscaleID != targetTS.ID {
-		slog.Debug("switching tailscale account", "from", state.TailscaleID, "to", targetTS.ID)
-		if err := opts.TS.Switch(ctx, targetTS.ID); err != nil {
-			if len(applied) > 0 {
-				return result, fmt.Errorf("%w (kube context already switched to %q)", err, profile.KubeContext)
-			}
+	switch profile.VPNType() {
+	case config.VPNTailscale:
+		targetTS, err := tailscale.ResolveAccount(profile.TailscaleAccount, mr.accounts)
+		if err != nil {
 			return result, err
 		}
-		applied = append(applied, "tailscale")
+		result.To.TailscaleID = targetTS.ID
+		result.To.TailscaleTailnet = targetTS.Tailnet
+		if state.TailscaleID != targetTS.ID {
+			slog.Debug("switching tailscale account", "from", state.TailscaleID, "to", targetTS.ID)
+			if err := opts.TS.Switch(ctx, targetTS.ID); err != nil {
+				if len(applied) > 0 {
+					return result, fmt.Errorf("%w (kube context already switched to %q)", err, profile.KubeContext)
+				}
+				return result, err
+			}
+			applied = append(applied, "tailscale")
+		}
+	case config.VPNNetbird:
+		targetNB, err := netbird.ResolveProfile(profile.NetbirdProfile, mr.profiles)
+		if err != nil {
+			return result, err
+		}
+		result.To.NetbirdProfile = targetNB.Name
+		if !strings.EqualFold(state.NetbirdProfile, targetNB.Name) {
+			slog.Debug("switching netbird profile", "from", state.NetbirdProfile, "to", targetNB.Name)
+			if err := opts.NB.SelectProfile(ctx, targetNB.Name); err != nil {
+				if len(applied) > 0 {
+					return result, fmt.Errorf("%w (kube context already switched to %q)", err, profile.KubeContext)
+				}
+				return result, err
+			}
+			applied = append(applied, "netbird")
+		}
+	default:
+		return result, fmt.Errorf("unsupported vpn %q in profile %q", profile.VPNType(), name)
 	}
 
 	if len(applied) == 0 {
@@ -247,12 +321,32 @@ func profileInfos(cfg *config.Config) []ProfileInfo {
 	for _, name := range names {
 		p := cfg.Profiles[name]
 		out = append(out, ProfileInfo{
-			Name:             name,
-			KubeContext:      p.KubeContext,
-			TailscaleAccount: p.TailscaleAccount,
+			Name:        name,
+			KubeContext: p.KubeContext,
+			Mesh:        profileMeshLabel(p),
 		})
 	}
 	return out
+}
+
+func profileMeshLabel(p config.Profile) string {
+	switch p.VPNType() {
+	case config.VPNNetbird:
+		return "netbird:" + p.NetbirdProfile
+	default:
+		return "tailscale:" + p.TailscaleAccount
+	}
+}
+
+func formatMeshState(cfg *config.Config, state State, mr meshRead) string {
+	var parts []string
+	if cfg.UsesTailscale() {
+		parts = append(parts, "tailscale="+tailscale.FormatAccount(findCurrentAccount(mr.accounts)))
+	}
+	if cfg.UsesNetbird() && state.NetbirdProfile != "" {
+		parts = append(parts, "netbird="+state.NetbirdProfile)
+	}
+	return strings.Join(parts, ", ")
 }
 
 func sortedProfileNames(cfg *config.Config) []string {

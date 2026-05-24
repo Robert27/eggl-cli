@@ -20,7 +20,7 @@ var (
 var dedashCmd = &cobra.Command{
 	Use:   "dedash",
 	Short: "Replace em-dashes with hyphens in text files",
-	Long: `Recursively scan a directory and replace Unicode em-dashes (—) with ASCII hyphens (-) in text files.
+	Long: `Recursively scan a directory and replace Unicode em-dashes (-) with ASCII hyphens (-) in text files.
 
 Skips binaries, dotfiles and dot-directories (unless --include-hidden), and common non-text directories such as node_modules and .git.
 Files larger than 50 MiB are skipped.

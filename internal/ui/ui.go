@@ -282,9 +282,9 @@ func dedashSummaryLine(summary DedashSummary) string {
 }
 
 type EnvProfile struct {
-	Name             string
-	KubeContext      string
-	TailscaleAccount string
+	Name        string
+	KubeContext string
+	Mesh        string
 }
 
 type EnvShowReport struct {
@@ -292,6 +292,9 @@ type EnvShowReport struct {
 	Unknown       bool
 	KubeContext   string
 	Tailscale     string
+	Netbird       string
+	ShowTailscale bool
+	ShowNetbird   bool
 	ConfigPath    string
 	Profiles      []EnvProfile
 }
@@ -301,8 +304,8 @@ type EnvSwitchResult struct {
 	ToProfile   string
 	FromKube    string
 	ToKube      string
-	FromTS      string
-	ToTS        string
+	FromMesh    string
+	ToMesh      string
 }
 
 func RenderEnvShow(w io.Writer, report EnvShowReport) {
@@ -314,10 +317,15 @@ func RenderEnvShow(w io.Writer, report EnvShowReport) {
 			fmt.Fprintf(w, "profile: %s\n", report.ActiveProfile)
 		}
 		fmt.Fprintf(w, "kube: %s\n", report.KubeContext)
-		fmt.Fprintf(w, "tailscale: %s\n", report.Tailscale)
+		if report.ShowTailscale {
+			fmt.Fprintf(w, "tailscale: %s\n", report.Tailscale)
+		}
+		if report.ShowNetbird {
+			fmt.Fprintf(w, "netbird: %s\n", report.Netbird)
+		}
 		fmt.Fprintf(w, "config: %s\n", report.ConfigPath)
 		for _, p := range report.Profiles {
-			fmt.Fprintf(w, "  %s: kube=%s tailscale=%s\n", p.Name, p.KubeContext, p.TailscaleAccount)
+			fmt.Fprintf(w, "  %s: kube=%s mesh=%s\n", p.Name, p.KubeContext, p.Mesh)
 		}
 		return
 	}
@@ -331,9 +339,14 @@ func RenderEnvShow(w io.Writer, report EnvShowReport) {
 	lines := []string{
 		renderKV(t, "profile", profileVal),
 		renderKV(t, "kube", report.KubeContext),
-		renderKV(t, "tailscale", report.Tailscale),
-		renderKV(t, "config", report.ConfigPath),
 	}
+	if report.ShowTailscale {
+		lines = append(lines, renderKV(t, "tailscale", report.Tailscale))
+	}
+	if report.ShowNetbird {
+		lines = append(lines, renderKV(t, "netbird", report.Netbird))
+	}
+	lines = append(lines, renderKV(t, "config", report.ConfigPath))
 	fmt.Fprintln(w, t.box.Render(strings.Join(lines, "\n")))
 
 	if len(report.Profiles) > 0 {
@@ -341,7 +354,7 @@ func RenderEnvShow(w io.Writer, report EnvShowReport) {
 		for _, p := range report.Profiles {
 			fmt.Fprintf(w, "  %s %s\n",
 				t.command.Render(p.Name),
-				t.muted.Render(fmt.Sprintf("kube=%s tailscale=%s", p.KubeContext, p.TailscaleAccount)),
+				t.muted.Render(fmt.Sprintf("kube=%s mesh=%s", p.KubeContext, p.Mesh)),
 			)
 		}
 	}
@@ -352,7 +365,9 @@ func RenderEnvSwitch(w io.Writer, result EnvSwitchResult) {
 	if !t.enabled {
 		fmt.Fprintf(w, "profile: %s → %s\n", result.FromProfile, result.ToProfile)
 		fmt.Fprintf(w, "kube: %s → %s\n", result.FromKube, result.ToKube)
-		fmt.Fprintf(w, "tailscale: %s → %s\n", result.FromTS, result.ToTS)
+		if result.FromMesh != "" || result.ToMesh != "" {
+			fmt.Fprintf(w, "mesh: %s → %s\n", result.FromMesh, result.ToMesh)
+		}
 		return
 	}
 
@@ -360,14 +375,16 @@ func RenderEnvSwitch(w io.Writer, result EnvSwitchResult) {
 	lines := []string{
 		renderKV(t, "profile", fmt.Sprintf("%s → %s", emptyDash(result.FromProfile), result.ToProfile)),
 		renderKV(t, "kube", fmt.Sprintf("%s → %s", result.FromKube, result.ToKube)),
-		renderKV(t, "tailscale", fmt.Sprintf("%s → %s", result.FromTS, result.ToTS)),
+	}
+	if result.FromMesh != "" || result.ToMesh != "" {
+		lines = append(lines, renderKV(t, "mesh", fmt.Sprintf("%s → %s", result.FromMesh, result.ToMesh)))
 	}
 	fmt.Fprintln(w, t.ok.Render(t.box.Render(strings.Join(lines, "\n"))))
 }
 
 func emptyDash(s string) string {
 	if s == "" {
-		return "—"
+		return "-"
 	}
 	return s
 }

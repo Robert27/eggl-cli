@@ -56,19 +56,20 @@ eggl completion zsh
 
 ### Environment profiles (`eggl env`)
 
-Switch kubectl context and Tailscale account together from `~/.config/eggl/config.yaml`:
+Switch kubectl context and a mesh VPN target together from `~/.config/eggl/config.yaml`. Each profile uses Tailscale or NetBird:
 
 ```yaml
 profiles:
-  alpha:
-    kube_context: context-a
+  work:
+    kube_context: context-work
     tailscale_account: b3e1
-  beta:
-    kube_context: context-b
-    tailscale_account: a7f2
+  homelab:
+    kube_context: context-home
+    vpn: netbird
+    netbird_profile: homelab
 ```
 
-`tailscale_account` can be an account id, tailnet name, or email from `tailscale switch --list`. `toggle` requires exactly two profiles.
+`tailscale_account` can be an account id, tailnet name, or email from `tailscale switch --list`. `netbird_profile` is a name from `netbird profile list`. Omit `vpn` for Tailscale (default). `toggle` requires exactly two profiles.
 
 ### Port-forwards (`eggl pf`)
 

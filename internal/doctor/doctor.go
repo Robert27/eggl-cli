@@ -94,7 +94,7 @@ func Run(ctx context.Context, opts Options) (*Report, error) {
 		"detail", homeCheck.Detail,
 	)
 
-	for _, tool := range []string{"kubectl", "git", "tailscale"} {
+	for _, tool := range append([]string{"kubectl", "git"}, meshToolsFromConfig()...) {
 		check := toolCheck(tool)
 		checks = append(checks, check)
 		slog.Debug("check result",
@@ -115,6 +115,30 @@ func Run(ctx context.Context, opts Options) (*Report, error) {
 	)
 
 	return &Report{Checks: checks}, nil
+}
+
+func meshToolsFromConfig() []string {
+	path := config.DefaultPath()
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		return []string{"tailscale", "netbird"}
+	}
+
+	cfg, err := config.Load(path)
+	if err != nil {
+		return []string{"tailscale", "netbird"}
+	}
+
+	var tools []string
+	if cfg.UsesTailscale() {
+		tools = append(tools, "tailscale")
+	}
+	if cfg.UsesNetbird() {
+		tools = append(tools, "netbird")
+	}
+	if len(tools) == 0 {
+		return []string{"tailscale", "netbird"}
+	}
+	return tools
 }
 
 func toolCheck(name string) Check {

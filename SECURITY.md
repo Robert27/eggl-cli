@@ -26,7 +26,7 @@ I aim to acknowledge reports within a few days. Critical issues in supported rel
 - Issues in this repository’s code (including release artifacts built from it)
 - Unsafe file handling (e.g. following symlinks outside the intended tree, corrupting binary files)
 - Misleading or dangerous defaults in commands that modify the filesystem
-- `eggl env` applying the wrong profile (switches kubeconfig context and Tailscale account; keep `~/.config/eggl/config.yaml` permissions tight)
+- `eggl env` applying the wrong profile (switches kubeconfig context and mesh VPN target; keep `~/.config/eggl/config.yaml` permissions tight)
 
 **Out of scope**
 
