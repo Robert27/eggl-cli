@@ -2,7 +2,6 @@ package doctor
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -145,69 +144,22 @@ func writeFakeBin(t *testing.T, dir, name string) {
 
 func TestRunToolChecksFound(t *testing.T) {
 	dir := t.TempDir()
-	for _, name := range []string{"kubectl", "git", "tailscale", "netbird"} {
+	for _, name := range []string{"kubectl", "git", "tailscale"} {
 		writeFakeBin(t, dir, name)
 	}
 	t.Setenv("PATH", dir)
-	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 
 	report, err := Run(context.Background(), Options{CheckPath: t.TempDir()})
 	if err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}
 
-	for _, name := range []string{"kubectl", "git", "tailscale", "netbird"} {
+	for _, name := range []string{"kubectl", "git", "tailscale"} {
 		check := findCheck(t, report, name)
 		if !check.OK {
 			t.Fatalf("%s check should pass, got %+v", name, check)
 		}
 	}
-}
-
-func TestRunNetbirdOnlyConfigSkipsTailscale(t *testing.T) {
-	dir := t.TempDir()
-	configDir := filepath.Join(dir, "eggl")
-	if err := os.MkdirAll(configDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	content := `profiles:
-  homelab:
-    kube_context: ctx-home
-    vpn: netbird
-    netbird_profile: homelab
-`
-	if err := os.WriteFile(filepath.Join(configDir, "config.yaml"), []byte(content), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	binDir := t.TempDir()
-	for _, name := range []string{"kubectl", "git", "netbird"} {
-		writeFakeBin(t, binDir, name)
-	}
-	t.Setenv("XDG_CONFIG_HOME", dir)
-	t.Setenv("PATH", binDir)
-
-	report, err := Run(context.Background(), Options{CheckPath: t.TempDir()})
-	if err != nil {
-		t.Fatalf("Run() error = %v", err)
-	}
-
-	if _, err := findCheckOptional(report, "tailscale"); err == nil {
-		t.Fatal("expected tailscale check to be omitted for netbird-only config")
-	}
-	nb := findCheck(t, report, "netbird")
-	if !nb.OK {
-		t.Fatalf("netbird check should pass, got %+v", nb)
-	}
-}
-
-func findCheckOptional(report *Report, name string) (Check, error) {
-	for _, check := range report.Checks {
-		if check.Name == name {
-			return check, nil
-		}
-	}
-	return Check{}, fmt.Errorf("check %q not found", name)
 }
 
 func TestRunToolCheckMissing(t *testing.T) {

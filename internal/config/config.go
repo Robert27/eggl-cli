@@ -21,9 +21,6 @@ var (
 const (
 	fileName      = "config.yaml"
 	MaxConfigSize = 1 << 20
-
-	VPNTailscale = "tailscale"
-	VPNNetbird   = "netbird"
 )
 
 type Config struct {
@@ -33,18 +30,7 @@ type Config struct {
 
 type Profile struct {
 	KubeContext      string `yaml:"kube_context"`
-	VPN              string `yaml:"vpn,omitempty"`
-	TailscaleAccount string `yaml:"tailscale_account,omitempty"`
-	NetbirdProfile   string `yaml:"netbird_profile,omitempty"`
-}
-
-func (p Profile) VPNType() string {
-	switch strings.ToLower(strings.TrimSpace(p.VPN)) {
-	case "", VPNTailscale:
-		return VPNTailscale
-	default:
-		return strings.ToLower(strings.TrimSpace(p.VPN))
-	}
+	TailscaleAccount string `yaml:"tailscale_account"`
 }
 
 type PortForward struct {
@@ -106,13 +92,13 @@ func (c *Config) Validate() error {
 		if err := validateKubeContext(name, profile.KubeContext); err != nil {
 			return err
 		}
-		if err := validateProfileVPN(name, profile); err != nil {
-			return err
+		if strings.TrimSpace(profile.TailscaleAccount) == "" {
+			return fmt.Errorf("config: profile %q: tailscale_account is required", name)
 		}
 
 		key := profileTargetKey(profile)
 		if other, ok := seenTargets[key]; ok {
-			return fmt.Errorf("config: profiles %q and %q share the same kube_context and mesh VPN target", other, name)
+			return fmt.Errorf("config: profiles %q and %q share the same kube_context and tailscale_account", other, name)
 		}
 		seenTargets[key] = name
 	}
@@ -192,53 +178,8 @@ func validatePortMapping(pfName, port string) error {
 	return nil
 }
 
-func validateProfileVPN(name string, profile Profile) error {
-	vpn := profile.VPNType()
-	switch vpn {
-	case VPNTailscale:
-		if strings.TrimSpace(profile.NetbirdProfile) != "" {
-			return fmt.Errorf("config: profile %q: netbird_profile must not be set when vpn is tailscale", name)
-		}
-		if strings.TrimSpace(profile.TailscaleAccount) == "" {
-			return fmt.Errorf("config: profile %q: tailscale_account is required", name)
-		}
-	case VPNNetbird:
-		if strings.TrimSpace(profile.TailscaleAccount) != "" {
-			return fmt.Errorf("config: profile %q: tailscale_account must not be set when vpn is netbird", name)
-		}
-		if strings.TrimSpace(profile.NetbirdProfile) == "" {
-			return fmt.Errorf("config: profile %q: netbird_profile is required", name)
-		}
-	default:
-		return fmt.Errorf("config: profile %q: vpn must be %q or %q", name, VPNTailscale, VPNNetbird)
-	}
-	return nil
-}
-
 func profileTargetKey(p Profile) string {
-	identity := strings.TrimSpace(p.TailscaleAccount)
-	if p.VPNType() == VPNNetbird {
-		identity = strings.TrimSpace(p.NetbirdProfile)
-	}
-	return strings.TrimSpace(p.KubeContext) + "\x00" + p.VPNType() + "\x00" + identity
-}
-
-func (c *Config) UsesTailscale() bool {
-	for _, p := range c.Profiles {
-		if p.VPNType() == VPNTailscale {
-			return true
-		}
-	}
-	return false
-}
-
-func (c *Config) UsesNetbird() bool {
-	for _, p := range c.Profiles {
-		if p.VPNType() == VPNNetbird {
-			return true
-		}
-	}
-	return false
+	return strings.TrimSpace(p.KubeContext) + "\x00" + strings.TrimSpace(p.TailscaleAccount)
 }
 
 func (c *Config) ProfileNames() []string {
@@ -258,21 +199,18 @@ func (c *Config) PortForwardNames() []string {
 }
 
 func InitTemplate() string {
-	return `# eggl env profiles - edit with your kubectl contexts and mesh VPN targets.
-# Tailscale account refs: id from ` + "`tailscale switch --list`" + `, or tailnet slug, or account email.
-# NetBird profile names: from ` + "`netbird profile list`" + `.
+	return `# eggl env profiles — edit with your kubectl contexts and Tailscale account refs.
+# Account refs: id from ` + "`tailscale switch --list`" + `, or tailnet slug, or account email.
 #
 # profiles:
 #   alpha:
 #     kube_context: context-a
-#     vpn: tailscale
 #     tailscale_account: b3e1
 #   beta:
 #     kube_context: context-b
-#     vpn: netbird
-#     netbird_profile: homelab
+#     tailscale_account: a7f2
 #
-# port_forwards (optional) - use with: eggl pf <name>
+# port_forwards (optional) — use with: eggl pf <name>
 #   longhorn:
 #     namespace: longhorn-system
 #     resource: svc/longhorn-frontend

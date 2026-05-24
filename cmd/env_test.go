@@ -30,11 +30,6 @@ func writeEnvTestConfig(t *testing.T) string {
 	return path
 }
 
-const netbirdProfileList = `Found 2 profiles:
-✓ homelab
-✗ work
-`
-
 func prependFakeBinaries(t *testing.T, kubeCtx string, tailscaleJSON string) {
 	t.Helper()
 
@@ -72,26 +67,6 @@ fi
 exit 1
 `, jsonPath)
 	if err := os.WriteFile(tailscaleBin, []byte(tsScript), 0o755); err != nil {
-		t.Fatal(err)
-	}
-
-	listPath := filepath.Join(dir, "netbird-profiles.txt")
-	if err := os.WriteFile(listPath, []byte(netbirdProfileList), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	netbirdBin := filepath.Join(dir, "netbird")
-	nbScript := fmt.Sprintf(`#!/bin/sh
-list=%q
-if [ "$1" = profile ] && [ "$2" = list ]; then
-  cat "$list"
-  exit 0
-fi
-if [ "$1" = profile ] && [ "$2" = select ]; then
-  exit 0
-fi
-exit 1
-`, listPath)
-	if err := os.WriteFile(netbirdBin, []byte(nbScript), 0o755); err != nil {
 		t.Fatal(err)
 	}
 
@@ -155,31 +130,6 @@ func TestEnvToggle(t *testing.T) {
 		t.Fatalf("Execute() error = %v", err)
 	}
 	for _, want := range []string{"profile:", "beta", "ctx-b"} {
-		if !strings.Contains(stdout, want) {
-			t.Fatalf("stdout = %q, want substring %q", stdout, want)
-		}
-	}
-}
-
-func TestEnvUseNetbird(t *testing.T) {
-	t.Setenv("NO_COLOR", "1")
-	path := filepath.Join(t.TempDir(), "config.yaml")
-	content := `profiles:
-  homelab:
-    kube_context: ctx-home
-    vpn: netbird
-    netbird_profile: homelab
-`
-	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	prependFakeBinaries(t, "ctx-other", envTestAccountsJSON)
-
-	stdout, _, err := runCmd(t, "env", "--config", path, "use", "homelab")
-	if err != nil {
-		t.Fatalf("Execute() error = %v", err)
-	}
-	for _, want := range []string{"profile:", "homelab", "ctx-home", "mesh:"} {
 		if !strings.Contains(stdout, want) {
 			t.Fatalf("stdout = %q, want substring %q", stdout, want)
 		}

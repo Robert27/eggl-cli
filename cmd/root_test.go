@@ -49,7 +49,7 @@ func writeFakeDoctorBin(t *testing.T, dir, name string) {
 func doctorPATH(t *testing.T) string {
 	t.Helper()
 	dir := t.TempDir()
-	for _, name := range []string{"kubectl", "git", "tailscale", "netbird"} {
+	for _, name := range []string{"kubectl", "git", "tailscale"} {
 		writeFakeDoctorBin(t, dir, name)
 	}
 	return dir
@@ -71,7 +71,7 @@ func TestDoctor(t *testing.T) {
 	if !strings.Contains(stdout, "[ok] go:") {
 		t.Fatalf("expected go check in output, got %q", stdout)
 	}
-	for _, name := range []string{"kubectl", "git", "tailscale", "netbird"} {
+	for _, name := range []string{"kubectl", "git", "tailscale"} {
 		if !strings.Contains(stdout, "[ok] "+name+":") {
 			t.Fatalf("expected %s check in output, got %q", name, stdout)
 		}

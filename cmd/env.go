@@ -15,8 +15,8 @@ var envConfigPath string
 
 var envCmd = &cobra.Command{
 	Use:   "env",
-	Short: "Switch kubectl context and mesh VPN together",
-	Long:  "Paired profiles in ~/.config/eggl/config.yaml (Tailscale or NetBird). See README.md for setup.",
+	Short: "Switch kubectl context and Tailscale account together",
+	Long:  "Paired profiles in ~/.config/eggl/config.yaml. See README.md for setup.",
 	Example: `  eggl env init
   eggl env show
   eggl env toggle
@@ -42,9 +42,9 @@ var envShowCmd = &cobra.Command{
 		profiles := make([]ui.EnvProfile, len(report.Profiles))
 		for i, p := range report.Profiles {
 			profiles[i] = ui.EnvProfile{
-				Name:        p.Name,
-				KubeContext: p.KubeContext,
-				Mesh:        p.Mesh,
+				Name:             p.Name,
+				KubeContext:      p.KubeContext,
+				TailscaleAccount: p.TailscaleAccount,
 			}
 		}
 
@@ -53,9 +53,6 @@ var envShowCmd = &cobra.Command{
 			Unknown:       report.Unknown,
 			KubeContext:   report.Current.KubeContext,
 			Tailscale:     tsLabel,
-			Netbird:       report.Current.NetbirdProfile,
-			ShowTailscale: report.ShowTailscale,
-			ShowNetbird:   report.ShowNetbird,
 			ConfigPath:    report.ConfigPath,
 			Profiles:      profiles,
 		})
@@ -138,26 +135,23 @@ func envOpts() env.Options {
 }
 
 func renderEnvSwitch(cmd *cobra.Command, result *env.SwitchResult) {
+	fromTS := result.From.TailscaleID
+	if result.From.TailscaleTailnet != "" {
+		fromTS = tailscale.FormatAccount(tailscale.Account{ID: result.From.TailscaleID, Tailnet: result.From.TailscaleTailnet})
+	}
+	toTS := result.To.TailscaleID
+	if result.To.TailscaleTailnet != "" {
+		toTS = tailscale.FormatAccount(tailscale.Account{ID: result.To.TailscaleID, Tailnet: result.To.TailscaleTailnet})
+	}
+
 	ui.RenderEnvSwitch(cmd.OutOrStdout(), ui.EnvSwitchResult{
 		FromProfile: result.FromProfile,
 		ToProfile:   result.ToProfile,
 		FromKube:    result.From.KubeContext,
 		ToKube:      result.To.KubeContext,
-		FromMesh:    formatMeshState(result.From, result.MeshVPN),
-		ToMesh:      formatMeshState(result.To, result.MeshVPN),
+		FromTS:      fromTS,
+		ToTS:        toTS,
 	})
-}
-
-func formatMeshState(state env.State, vpn string) string {
-	switch vpn {
-	case config.VPNNetbird:
-		return state.NetbirdProfile
-	default:
-		return tailscale.FormatAccount(tailscale.Account{
-			ID:      state.TailscaleID,
-			Tailnet: state.TailscaleTailnet,
-		})
-	}
 }
 
 func init() {

@@ -8,7 +8,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Robert27/eggl-cli/internal/netbird"
 	"github.com/Robert27/eggl-cli/internal/tailscale"
 )
 
@@ -52,32 +51,6 @@ func (f *fakeTS) Switch(_ context.Context, accountID string) error {
 	return nil
 }
 
-type fakeNB struct {
-	profiles  []netbird.Profile
-	selectErr error
-}
-
-func (f *fakeNB) ListProfiles(context.Context) ([]netbird.Profile, error) {
-	return f.profiles, nil
-}
-
-func (f *fakeNB) SelectProfile(_ context.Context, name string) error {
-	if f.selectErr != nil {
-		return f.selectErr
-	}
-	for i := range f.profiles {
-		f.profiles[i].Active = strings.EqualFold(f.profiles[i].Name, name)
-	}
-	return nil
-}
-
-func testNetbirdProfiles() []netbird.Profile {
-	return []netbird.Profile{
-		{Name: "homelab", Active: true},
-		{Name: "work", Active: false},
-	}
-}
-
 func testAccounts() []tailscale.Account {
 	return []tailscale.Account{
 		{ID: "a7f2", Tailnet: "example-beta.internal", Selected: false},
@@ -112,9 +85,6 @@ func TestDefaultOptions(t *testing.T) {
 	}
 	if opts.TS == nil {
 		t.Fatal("expected TS runner")
-	}
-	if opts.NB == nil {
-		t.Fatal("expected NB runner")
 	}
 }
 
@@ -242,82 +212,6 @@ func TestShowAmbiguousProfile(t *testing.T) {
 func accountSelected(accounts []tailscale.Account, id string) bool {
 	for _, a := range accounts {
 		if a.ID == id && a.Selected {
-			return true
-		}
-	}
-	return false
-}
-
-func TestShowNetbirdOnlyProfile(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "config.yaml")
-	content := `profiles:
-  homelab:
-    kube_context: ctx-home
-    vpn: netbird
-    netbird_profile: homelab
-`
-	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	report, err := Show(context.Background(), Options{
-		ConfigPath: path,
-		Kube:       &fakeKube{context: "ctx-home"},
-		NB:         &fakeNB{profiles: testNetbirdProfiles()},
-	})
-	if err != nil {
-		t.Fatalf("Show() error = %v", err)
-	}
-	if report.ActiveProfile != "homelab" {
-		t.Fatalf("ActiveProfile = %q, want homelab", report.ActiveProfile)
-	}
-	if !report.ShowNetbird || report.ShowTailscale {
-		t.Fatalf("ShowNetbird=%v ShowTailscale=%v", report.ShowNetbird, report.ShowTailscale)
-	}
-}
-
-func TestToggleMixedVPNProfiles(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "config.yaml")
-	content := `profiles:
-  alpha:
-    kube_context: ctx-a
-    tailscale_account: b3e1
-  homelab:
-    kube_context: ctx-home
-    vpn: netbird
-    netbird_profile: homelab
-`
-	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	fk := &fakeKube{context: "ctx-a"}
-	ft := &fakeTS{accounts: testAccounts()}
-	fnb := &fakeNB{profiles: testNetbirdProfiles()}
-
-	result, err := Toggle(context.Background(), Options{
-		ConfigPath: path,
-		Kube:       fk,
-		TS:         ft,
-		NB:         fnb,
-	})
-	if err != nil {
-		t.Fatalf("Toggle() error = %v", err)
-	}
-	if result.ToProfile != "homelab" {
-		t.Fatalf("ToProfile = %q, want homelab", result.ToProfile)
-	}
-	if fk.context != "ctx-home" {
-		t.Fatalf("kube context = %q, want ctx-home", fk.context)
-	}
-	if !profileActive(fnb.profiles, "homelab") {
-		t.Fatal("expected homelab netbird profile active")
-	}
-}
-
-func profileActive(profiles []netbird.Profile, name string) bool {
-	for _, p := range profiles {
-		if strings.EqualFold(p.Name, name) && p.Active {
 			return true
 		}
 	}
