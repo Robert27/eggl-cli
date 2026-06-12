@@ -403,6 +403,172 @@ func TestRunRespectsContextCancel(t *testing.T) {
 	}
 }
 
+type fakeGitDiff struct {
+	inside      bool
+	root        string
+	files       []string
+	filesSince  map[string][]string
+	insideE     error
+	rootE       error
+	filesE      error
+	filesSinceE error
+}
+
+func (f *fakeGitDiff) InsideWorkTree(context.Context) (bool, error) {
+	return f.inside, f.insideE
+}
+
+func (f *fakeGitDiff) RepoRoot(context.Context) (string, error) {
+	return f.root, f.rootE
+}
+
+func (f *fakeGitDiff) ChangedFilePaths(context.Context) ([]string, error) {
+	return f.files, f.filesE
+}
+
+func (f *fakeGitDiff) ChangedFilePathsSince(_ context.Context, base string) ([]string, error) {
+	if f.filesSinceE != nil {
+		return nil, f.filesSinceE
+	}
+	if f.filesSince != nil {
+		return f.filesSince[base], nil
+	}
+	return f.files, nil
+}
+
+func TestRunGitDiffOnlyChangedFiles(t *testing.T) {
+	root := t.TempDir()
+	if err := writeTestFile(root, "changed.md", "hello \u2014 world"); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeTestFile(root, "unchanged.md", "also \u2014 dash"); err != nil {
+		t.Fatal(err)
+	}
+
+	report, err := Run(context.Background(), Options{
+		Root:    root,
+		Yes:     true,
+		GitDiff: true,
+		Git: &fakeGitDiff{
+			inside: true,
+			root:   root,
+			files:  []string{"changed.md"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if report.Modified != 1 {
+		t.Fatalf("Modified = %d, want 1", report.Modified)
+	}
+
+	got, err := readTestFile(root, "changed.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "hello - world" {
+		t.Fatalf("changed.md = %q, want %q", got, "hello - world")
+	}
+
+	got, err = readTestFile(root, "unchanged.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "also \u2014 dash" {
+		t.Fatalf("unchanged.md should be untouched, got %q", got)
+	}
+}
+
+func TestRunGitDiffBaseOnlyBranchFiles(t *testing.T) {
+	root := t.TempDir()
+	if err := writeTestFile(root, "branch.md", "hello \u2014 world"); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeTestFile(root, "main-only.md", "also \u2014 dash"); err != nil {
+		t.Fatal(err)
+	}
+
+	report, err := Run(context.Background(), Options{
+		Root:        root,
+		Yes:         true,
+		GitDiffBase: "main",
+		Git: &fakeGitDiff{
+			inside: true,
+			root:   root,
+			filesSince: map[string][]string{
+				"main": {"branch.md"},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if report.Modified != 1 {
+		t.Fatalf("Modified = %d, want 1", report.Modified)
+	}
+
+	got, err := readTestFile(root, "branch.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "hello - world" {
+		t.Fatalf("branch.md = %q, want %q", got, "hello - world")
+	}
+
+	got, err = readTestFile(root, "main-only.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "also \u2014 dash" {
+		t.Fatalf("main-only.md should be untouched, got %q", got)
+	}
+}
+
+func TestRunGitDiffSkipsDeletedPaths(t *testing.T) {
+	root := t.TempDir()
+	if err := writeTestFile(root, "keep.md", "hello \u2014 world"); err != nil {
+		t.Fatal(err)
+	}
+
+	report, err := Run(context.Background(), Options{
+		Root:    root,
+		Yes:     true,
+		GitDiff: true,
+		Git: &fakeGitDiff{
+			inside: true,
+			root:   root,
+			files:  []string{"keep.md", "removed.md"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if report.Modified != 1 {
+		t.Fatalf("Modified = %d, want 1", report.Modified)
+	}
+	if report.Skipped != 0 {
+		t.Fatalf("Skipped = %d, want 0 (deleted paths are ignored)", report.Skipped)
+	}
+}
+
+func TestRunGitDiffNotInsideWorkTree(t *testing.T) {
+	root := t.TempDir()
+
+	_, err := Run(context.Background(), Options{
+		Root:    root,
+		GitDiff: true,
+		Git: &fakeGitDiff{
+			inside: false,
+		},
+	})
+	if err == nil {
+		t.Fatal("expected error outside git work tree")
+	}
+	if !strings.Contains(err.Error(), "not inside a git work tree") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
 func TestRunNotTerminalRequiresYes(t *testing.T) {
 	root := t.TempDir()
 	if err := writeTestFile(root, "readme.md", "hello \u2014 world"); err != nil {
