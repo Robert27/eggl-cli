@@ -146,6 +146,14 @@ func Run(ctx context.Context, opts Options) (*Report, error) {
 	return report, nil
 }
 
+func normalizeAbsPath(path string) (string, error) {
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return "", err
+	}
+	return filepath.EvalSymlinks(abs)
+}
+
 func gitRunner(opts Options) GitDiffRunner {
 	if opts.Git != nil {
 		return opts.Git
@@ -164,6 +172,14 @@ func scanGitDiff(ctx context.Context, opts Options, root string, extensions []st
 	repoRoot, err := runner.RepoRoot(ctx)
 	if err != nil {
 		return err
+	}
+	repoRoot, err = normalizeAbsPath(repoRoot)
+	if err != nil {
+		return fmt.Errorf("resolve repo root: %w", err)
+	}
+	scanRoot, err := normalizeAbsPath(root)
+	if err != nil {
+		return fmt.Errorf("resolve scan root: %w", err)
 	}
 
 	var changed []string
@@ -184,13 +200,13 @@ func scanGitDiff(ctx context.Context, opts Options, root string, extensions []st
 		}
 
 		abs := filepath.Join(repoRoot, rel)
-		relToRoot, err := filepath.Rel(root, abs)
+		relToRoot, err := filepath.Rel(scanRoot, abs)
 		if err != nil || strings.HasPrefix(relToRoot, "..") {
 			slog.Debug("skipping file", "path", rel, "reason", "outside scan root")
 			continue
 		}
 
-		info, err := os.Stat(abs)
+		info, err := os.Lstat(abs)
 		if err != nil {
 			if os.IsNotExist(err) {
 				slog.Debug("skipping file", "path", rel, "reason", "deleted file")

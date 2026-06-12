@@ -2,7 +2,9 @@ package dedash
 
 import (
 	"context"
+	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -551,6 +553,252 @@ func TestRunGitDiffSkipsDeletedPaths(t *testing.T) {
 	}
 }
 
+func TestRunGitDiffSkipsFileOutsidePath(t *testing.T) {
+	root := t.TempDir()
+	docs := filepath.Join(root, "docs")
+	if err := os.MkdirAll(docs, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeTestFile(root, "root.md", "root \u2014 dash"); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeTestFile(docs, "docs.md", "docs \u2014 dash"); err != nil {
+		t.Fatal(err)
+	}
+
+	report, err := Run(context.Background(), Options{
+		Root:    docs,
+		Yes:     true,
+		GitDiff: true,
+		Git: &fakeGitDiff{
+			inside: true,
+			root:   root,
+			files:  []string{"root.md", "docs/docs.md"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if report.Modified != 1 {
+		t.Fatalf("Modified = %d, want 1", report.Modified)
+	}
+	if report.Changes[0].Path != "docs.md" {
+		t.Fatalf("change path = %q, want docs.md", report.Changes[0].Path)
+	}
+}
+
+func TestRunGitDiffRespectsExtensionFilter(t *testing.T) {
+	root := t.TempDir()
+	if err := writeTestFile(root, "readme.md", "md \u2014 dash"); err != nil {
+		t.Fatal(err)
+	}
+	if err := writeTestFile(root, "notes.txt", "txt \u2014 dash"); err != nil {
+		t.Fatal(err)
+	}
+
+	report, err := Run(context.Background(), Options{
+		Root:       root,
+		Yes:        true,
+		GitDiff:    true,
+		Extensions: []string{"md"},
+		Git: &fakeGitDiff{
+			inside: true,
+			root:   root,
+			files:  []string{"readme.md", "notes.txt"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if report.Modified != 1 {
+		t.Fatalf("Modified = %d, want 1", report.Modified)
+	}
+	if report.Skipped != 1 {
+		t.Fatalf("Skipped = %d, want 1", report.Skipped)
+	}
+}
+
+func TestRunGitDiffSkipsNonRegularFile(t *testing.T) {
+	root := t.TempDir()
+	target := filepath.Join(root, "readme.md")
+	if err := writeTestFile(root, "readme.md", "hello \u2014 world"); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(root, "link.md")
+	if err := os.Symlink(target, link); err != nil {
+		t.Skip("symlinks not supported:", err)
+	}
+
+	report, err := Run(context.Background(), Options{
+		Root:    root,
+		Yes:     true,
+		GitDiff: true,
+		Git: &fakeGitDiff{
+			inside: true,
+			root:   root,
+			files:  []string{"readme.md", "link.md"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if report.Modified != 1 {
+		t.Fatalf("Modified = %d, want 1", report.Modified)
+	}
+	if report.Skipped != 1 {
+		t.Fatalf("Skipped = %d, want 1", report.Skipped)
+	}
+}
+
+func TestRunGitDiffSkipsOversizedFile(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "big.md")
+	if err := os.WriteFile(path, []byte("\u2014"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Truncate(path, MaxFileSize+1); err != nil {
+		t.Fatal(err)
+	}
+
+	report, err := Run(context.Background(), Options{
+		Root:    root,
+		Yes:     true,
+		GitDiff: true,
+		Git: &fakeGitDiff{
+			inside: true,
+			root:   root,
+			files:  []string{"big.md"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if report.Modified != 0 {
+		t.Fatalf("Modified = %d, want 0", report.Modified)
+	}
+	if report.Skipped != 1 {
+		t.Fatalf("Skipped = %d, want 1", report.Skipped)
+	}
+}
+
+func TestRunGitDiffRepoRootError(t *testing.T) {
+	root := t.TempDir()
+
+	_, err := Run(context.Background(), Options{
+		Root:    root,
+		GitDiff: true,
+		Git: &fakeGitDiff{
+			inside: true,
+			rootE:  errors.New("repo root unavailable"),
+		},
+	})
+	if err == nil {
+		t.Fatal("expected repo root error")
+	}
+	if !strings.Contains(err.Error(), "repo root unavailable") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestRunGitDiffChangedPathsError(t *testing.T) {
+	root := t.TempDir()
+
+	_, err := Run(context.Background(), Options{
+		Root:    root,
+		GitDiff: true,
+		Git: &fakeGitDiff{
+			inside: true,
+			root:   root,
+			filesE: errors.New("diff failed"),
+		},
+	})
+	if err == nil {
+		t.Fatal("expected changed paths error")
+	}
+	if !strings.Contains(err.Error(), "diff failed") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestRunGitDiffBaseChangedPathsError(t *testing.T) {
+	root := t.TempDir()
+
+	_, err := Run(context.Background(), Options{
+		Root:        root,
+		GitDiffBase: "main",
+		Git: &fakeGitDiff{
+			inside:      true,
+			root:        root,
+			filesSinceE: errors.New("branch diff failed"),
+		},
+	})
+	if err == nil {
+		t.Fatal("expected branch diff error")
+	}
+	if !strings.Contains(err.Error(), "branch diff failed") {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestRunGitDiffRespectsContextCancel(t *testing.T) {
+	root := t.TempDir()
+	if err := writeTestFile(root, "readme.md", "hello \u2014 world"); err != nil {
+		t.Fatal(err)
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err := Run(ctx, Options{
+		Root:    root,
+		GitDiff: true,
+		Git: &fakeGitDiff{
+			inside: true,
+			root:   root,
+			files:  []string{"readme.md"},
+		},
+	})
+	if err != context.Canceled {
+		t.Fatalf("Run() error = %v, want context.Canceled", err)
+	}
+}
+
+func TestRunGitDiffIntegration(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not available")
+	}
+
+	dir := t.TempDir()
+	initDedashGitRepo(t, dir)
+	writeDedashGitFile(t, dir, "readme.md", "original\n")
+	runDedashGit(t, dir, "add", "readme.md")
+	runDedashGit(t, dir, "commit", "-m", "init")
+	writeDedashGitFile(t, dir, "readme.md", "hello \u2014 world\n")
+
+	origWD, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(origWD)
+	})
+
+	report, err := Run(context.Background(), Options{
+		Root:    dir,
+		GitDiff: true,
+		Yes:     true,
+	})
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if report.Modified != 1 {
+		t.Fatalf("Modified = %d, want 1", report.Modified)
+	}
+}
+
 func TestRunGitDiffNotInsideWorkTree(t *testing.T) {
 	root := t.TempDir()
 
@@ -584,5 +832,32 @@ func TestRunNotTerminalRequiresYes(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "not a terminal") {
 		t.Fatalf("error = %v", err)
+	}
+}
+
+func initDedashGitRepo(t *testing.T, dir string) {
+	t.Helper()
+	runDedashGit(t, dir, "init")
+	runDedashGit(t, dir, "config", "user.email", "test@example.com")
+	runDedashGit(t, dir, "config", "user.name", "Test User")
+}
+
+func runDedashGit(t *testing.T, dir string, args ...string) {
+	t.Helper()
+	cmd := exec.Command("git", args...)
+	cmd.Dir = dir
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("git %s: %v: %s", strings.Join(args, " "), err, strings.TrimSpace(string(out)))
+	}
+}
+
+func writeDedashGitFile(t *testing.T, dir, name, content string) {
+	t.Helper()
+	path := filepath.Join(dir, name)
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
 	}
 }

@@ -230,6 +230,107 @@ func TestChangedFilePathsNotInsideWorkTree(t *testing.T) {
 	}
 }
 
+func TestRepoRoot(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not available")
+	}
+
+	dir := t.TempDir()
+	initGitRepo(t, dir)
+
+	origWD, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(origWD)
+	})
+
+	root, err := CLI{}.RepoRoot(context.Background())
+	if err != nil {
+		t.Fatalf("RepoRoot() error = %v", err)
+	}
+	absDir, err := filepath.Abs(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantRoot, err := filepath.EvalSymlinks(absDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if root != wantRoot {
+		t.Fatalf("RepoRoot() = %q, want %q", root, wantRoot)
+	}
+}
+
+func TestChangedFilePathsSinceEmptyBase(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git not available")
+	}
+
+	dir := t.TempDir()
+	initGitRepo(t, dir)
+	writeFile(t, dir, "readme.md", "hello\n")
+	runGit(t, dir, "add", "readme.md")
+	runGit(t, dir, "commit", "-m", "init")
+
+	origWD, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(origWD)
+	})
+
+	_, err = CLI{}.ChangedFilePathsSince(context.Background(), "  ")
+	if err == nil {
+		t.Fatal("expected error for empty diff base")
+	}
+	if !strings.Contains(err.Error(), "diff base ref is required") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestChangedFilePathsSinceNotInsideWorkTree(t *testing.T) {
+	dir := t.TempDir()
+	origWD, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chdir(dir); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(origWD)
+	})
+
+	_, err = CLI{}.ChangedFilePathsSince(context.Background(), "main")
+	if err == nil {
+		t.Fatal("expected error outside git work tree")
+	}
+	if !strings.Contains(err.Error(), "not inside a git work tree") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestUniqueSortedEmpty(t *testing.T) {
+	if got := uniqueSorted(nil); got != nil {
+		t.Fatalf("uniqueSorted(nil) = %v, want nil", got)
+	}
+}
+
+func TestExistingFilesEmpty(t *testing.T) {
+	if got := existingFiles(t.TempDir(), nil); got != nil {
+		t.Fatalf("existingFiles() = %v, want nil", got)
+	}
+}
+
 func TestUniqueSorted(t *testing.T) {
 	got := uniqueSorted([]string{"b.md", "a.md", "b.md"})
 	want := []string{"a.md", "b.md"}

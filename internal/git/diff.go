@@ -103,9 +103,14 @@ func existingFiles(repoRoot string, paths []string) []string {
 		return nil
 	}
 
+	normRoot, err := filepath.EvalSymlinks(repoRoot)
+	if err != nil {
+		normRoot = repoRoot
+	}
+
 	out := make([]string, 0, len(paths))
 	for _, rel := range paths {
-		if _, err := os.Stat(filepath.Join(repoRoot, rel)); err != nil {
+		if _, err := os.Stat(filepath.Join(normRoot, rel)); err != nil {
 			continue
 		}
 		out = append(out, rel)
