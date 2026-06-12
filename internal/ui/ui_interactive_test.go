@@ -125,14 +125,14 @@ func TestRenderDedashInteractiveModified(t *testing.T) {
 	t.Setenv("NO_COLOR", "")
 
 	w, master := openTestTTY(t)
-	RenderDedash(w, DedashSummary{
-		Scanned:           2,
-		Modified:          1,
-		TotalReplacements: 1,
-		Changes:           []DedashChange{{Path: "a.md", Replacements: 1}},
+	got := renderPTY(t, master, w, func(out io.Writer) {
+		RenderDedash(out, DedashSummary{
+			Scanned:           2,
+			Modified:          1,
+			TotalReplacements: 1,
+			Changes:           []DedashChange{{Path: "a.md", Replacements: 1}},
+		})
 	})
-
-	got := readPTY(t, master)
 	for _, want := range []string{"modified 1", "a.md"} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("expected %q in styled dedash output, got %q", want, got)
