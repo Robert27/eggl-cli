@@ -169,6 +169,32 @@ func TestEOLDiffMutuallyExclusiveWithDiffBase(t *testing.T) {
 	}
 }
 
+func TestEOLRequiresYesWithoutTTY(t *testing.T) {
+	t.Setenv("NO_COLOR", "1")
+
+	root := t.TempDir()
+	path := filepath.Join(root, "readme.md")
+	if err := os.WriteFile(path, []byte("hello\r\nworld\r\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	_, stderr, err := runCmdWithIn(t, strings.NewReader(""), "eol", "--path", root)
+	if err == nil {
+		t.Fatal("expected error when stdin is not a terminal and --yes is not set")
+	}
+	if !strings.Contains(stderr, "not a terminal") && !strings.Contains(err.Error(), "not a terminal") {
+		t.Fatalf("error = %v, stderr = %q", err, stderr)
+	}
+
+	got, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(got) != "hello\r\nworld\r\n" {
+		t.Fatalf("file should be unchanged, got %q", got)
+	}
+}
+
 func setupEOLGitRepo(t *testing.T) string {
 	t.Helper()
 

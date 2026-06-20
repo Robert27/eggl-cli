@@ -113,19 +113,21 @@ func TestRunSkipsBinary(t *testing.T) {
 
 type fakeGitDiff struct {
 	inside      bool
-	repoRoot    string
+	root        string
 	files       []string
 	filesSince  map[string][]string
+	insideE     error
+	rootE       error
 	filesE      error
 	filesSinceE error
 }
 
 func (f *fakeGitDiff) InsideWorkTree(context.Context) (bool, error) {
-	return f.inside, nil
+	return f.inside, f.insideE
 }
 
 func (f *fakeGitDiff) RepoRoot(context.Context) (string, error) {
-	return f.repoRoot, nil
+	return f.root, f.rootE
 }
 
 func (f *fakeGitDiff) ChangedFilePaths(context.Context) ([]string, error) {
@@ -149,9 +151,9 @@ func TestRunGitDiffOnlyChangedFiles(t *testing.T) {
 		Yes:     true,
 		GitDiff: true,
 		Git: &fakeGitDiff{
-			inside:   true,
-			repoRoot: root,
-			files:    []string{"changed.md"},
+			inside: true,
+			root:   root,
+			files:  []string{"changed.md"},
 		},
 	})
 	if err != nil {
@@ -183,8 +185,8 @@ func TestRunGitDiffBaseOnlyBranchFiles(t *testing.T) {
 		Yes:         true,
 		GitDiffBase: "main",
 		Git: &fakeGitDiff{
-			inside:   true,
-			repoRoot: root,
+			inside: true,
+			root:   root,
 			filesSince: map[string][]string{
 				"main": {"feature.md"},
 			},
