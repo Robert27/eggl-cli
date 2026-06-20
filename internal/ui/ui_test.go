@@ -347,6 +347,56 @@ func TestRenderDedashModifiedPlain(t *testing.T) {
 	}
 }
 
+func TestRenderEOLNoChangesPlain(t *testing.T) {
+	t.Setenv("NO_COLOR", "1")
+
+	var buf bytes.Buffer
+	RenderEOL(&buf, EOLSummary{Scanned: 5, Skipped: 2})
+	if !strings.Contains(buf.String(), "no line ending fixes needed") {
+		t.Fatalf("expected no changes summary, got %q", buf.String())
+	}
+}
+
+func TestRenderEOLDryRunPlain(t *testing.T) {
+	t.Setenv("NO_COLOR", "1")
+
+	var buf bytes.Buffer
+	RenderEOL(&buf, EOLSummary{
+		Scanned:           3,
+		Modified:          1,
+		TotalReplacements: 2,
+		Changes:           []EOLChange{{Path: "readme.md", Replacements: 2}},
+		DryRun:            true,
+		Skipped:           1,
+	})
+	got := buf.String()
+	if !strings.Contains(got, "dry-run:") || !strings.Contains(got, "skipped 1") {
+		t.Fatalf("expected dry-run summary, got %q", got)
+	}
+}
+
+func TestRenderEOLPlain(t *testing.T) {
+	t.Setenv("NO_COLOR", "1")
+
+	var buf bytes.Buffer
+	RenderEOL(&buf, EOLSummary{
+		Scanned:           3,
+		Modified:          1,
+		TotalReplacements: 2,
+		Changes:           []EOLChange{{Path: "readme.md", Replacements: 2}},
+	})
+
+	got := buf.String()
+	for _, want := range []string{
+		"scanned 3 files, modified 1 (2 line endings)",
+		"readme.md (2)",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("expected %q in output, got %q", want, got)
+		}
+	}
+}
+
 func TestConfirmPrompt(t *testing.T) {
 	var out bytes.Buffer
 
