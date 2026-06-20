@@ -112,6 +112,19 @@ directories:
 	}
 }
 
+func TestCDCompleteMissingConfig(t *testing.T) {
+	cdConfigPath = filepath.Join(t.TempDir(), "missing.yaml")
+	t.Cleanup(func() { cdConfigPath = "" })
+
+	names, directive := cdComplete(cdCmd, []string{}, "")
+	if len(names) != 0 {
+		t.Fatalf("names = %v, want none", names)
+	}
+	if directive != cobra.ShellCompDirectiveNoFileComp {
+		t.Fatalf("directive = %v", directive)
+	}
+}
+
 func TestCDComplete(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.yaml")
 	if err := os.WriteFile(path, []byte(`

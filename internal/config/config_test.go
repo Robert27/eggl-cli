@@ -183,6 +183,21 @@ func TestExpandPath(t *testing.T) {
 	if got != home {
 		t.Fatalf("ExpandPath(~) = %q, want %q", got, home)
 	}
+
+	got, err = ExpandPath("/tmp/work")
+	if err != nil {
+		t.Fatalf("ExpandPath(absolute) error = %v", err)
+	}
+	if got != "/tmp/work" {
+		t.Fatalf("ExpandPath(absolute) = %q, want /tmp/work", got)
+	}
+
+	if _, err := ExpandPath(""); err == nil {
+		t.Fatal("expected error for empty path")
+	}
+	if _, err := ExpandPath("~other"); err == nil {
+		t.Fatal("expected error for invalid home path")
+	}
 }
 
 func TestProfileAndPortForwardNames(t *testing.T) {
@@ -248,6 +263,9 @@ func TestLoadValidationError(t *testing.T) {
 	_, err := Load(path)
 	if err == nil {
 		t.Fatal("expected validation error")
+	}
+	if !strings.Contains(err.Error(), "at least one profile or directory is required") {
+		t.Fatalf("error = %v", err)
 	}
 }
 
