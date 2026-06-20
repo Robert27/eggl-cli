@@ -347,6 +347,28 @@ func TestRenderDedashModifiedPlain(t *testing.T) {
 	}
 }
 
+func TestRenderEOLPlain(t *testing.T) {
+	t.Setenv("NO_COLOR", "1")
+
+	var buf bytes.Buffer
+	RenderEOL(&buf, EOLSummary{
+		Scanned:           3,
+		Modified:          1,
+		TotalReplacements: 2,
+		Changes:           []EOLChange{{Path: "readme.md", Replacements: 2}},
+	})
+
+	got := buf.String()
+	for _, want := range []string{
+		"scanned 3 files, modified 1 (2 line endings)",
+		"readme.md (2)",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("expected %q in output, got %q", want, got)
+		}
+	}
+}
+
 func TestConfirmPrompt(t *testing.T) {
 	var out bytes.Buffer
 

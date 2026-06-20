@@ -281,6 +281,66 @@ func dedashSummaryLine(summary DedashSummary) string {
 		summary.Scanned, skipped, summary.Modified, summary.TotalReplacements)
 }
 
+type EOLChange struct {
+	Path         string
+	Replacements int
+}
+
+type EOLSummary struct {
+	Scanned           int
+	Modified          int
+	Skipped           int
+	TotalReplacements int
+	Changes           []EOLChange
+	DryRun            bool
+}
+
+func RenderEOL(w io.Writer, summary EOLSummary) {
+	t := NewTheme(w)
+	line := eolSummaryLine(summary)
+
+	switch {
+	case !t.enabled:
+		fmt.Fprintln(w, line)
+	case summary.Modified > 0 && !summary.DryRun:
+		fmt.Fprintln(w, t.ok.Render(line))
+	case summary.DryRun:
+		fmt.Fprintln(w, t.muted.Render(line))
+	default:
+		fmt.Fprintln(w, t.muted.Render(line))
+	}
+
+	for _, change := range summary.Changes {
+		if t.enabled {
+			fmt.Fprintf(w, "  %s %s\n",
+				t.command.Render(change.Path),
+				t.muted.Render(fmt.Sprintf("(%d)", change.Replacements)),
+			)
+			continue
+		}
+		fmt.Fprintf(w, "  %s (%d)\n", change.Path, change.Replacements)
+	}
+}
+
+func eolSummaryLine(summary EOLSummary) string {
+	skipped := ""
+	if summary.Skipped > 0 {
+		skipped = fmt.Sprintf(", skipped %d", summary.Skipped)
+	}
+
+	if summary.Modified == 0 {
+		return fmt.Sprintf("scanned %d files%s, no line ending fixes needed", summary.Scanned, skipped)
+	}
+
+	if summary.DryRun {
+		return fmt.Sprintf("dry-run: scanned %d files%s, would modify %d (%d line endings)",
+			summary.Scanned, skipped, summary.Modified, summary.TotalReplacements)
+	}
+
+	return fmt.Sprintf("scanned %d files%s, modified %d (%d line endings)",
+		summary.Scanned, skipped, summary.Modified, summary.TotalReplacements)
+}
+
 type EnvProfile struct {
 	Name             string
 	KubeContext      string
