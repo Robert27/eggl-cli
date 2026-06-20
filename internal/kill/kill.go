@@ -7,7 +7,6 @@ import (
 	"os"
 
 	"github.com/Robert27/eggl-cli/internal/ui"
-	"golang.org/x/term"
 )
 
 type Process struct {
@@ -74,7 +73,7 @@ func Run(ctx context.Context, opts Options) (*Result, error) {
 		if out == nil {
 			out = os.Stderr
 		}
-		if !term.IsTerminal(int(os.Stdin.Fd())) {
+		if !ui.IsInteractiveInput(in) {
 			return result, fmt.Errorf("not a terminal; use --yes to confirm kills")
 		}
 

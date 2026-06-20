@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/Robert27/eggl-cli/internal/kill"
+	"github.com/creack/pty"
 )
 
 func TestHoldPortHelper(t *testing.T) {
@@ -147,4 +148,70 @@ func TestKillYesForce(t *testing.T) {
 	if !strings.Contains(stdout, "killed pid") || !strings.Contains(stdout, "SIGKILL") {
 		t.Fatalf("stdout = %q", stdout)
 	}
+}
+
+func TestKillYesWithoutForce(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping listener test in short mode")
+	}
+
+	t.Setenv("NO_COLOR", "1")
+
+	port := startListenerProcess(t)
+	stdout, _, err := runCmd(t, "kill", "--yes", strconv.Itoa(port))
+	if err != nil {
+		t.Fatalf("Execute() error = %v", err)
+	}
+	if !strings.Contains(stdout, "killed pid") {
+		t.Fatalf("stdout = %q", stdout)
+	}
+	if strings.Contains(stdout, "SIGKILL") {
+		t.Fatalf("expected SIGTERM kill output, got %q", stdout)
+	}
+}
+
+func TestKillCancelled(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping listener test in short mode")
+	}
+
+	t.Setenv("NO_COLOR", "1")
+
+	port := startListenerProcess(t)
+	tty, master := openKillCmdTTY(t)
+	defer func() { _ = master.Close() }()
+	defer func() { _ = tty.Close() }()
+
+	done := make(chan struct{})
+	go func() {
+		time.Sleep(20 * time.Millisecond)
+		_, _ = master.Write([]byte("n\n"))
+		close(done)
+	}()
+
+	stdout, stderr, err := runCmdWithIn(t, tty, "kill", strconv.Itoa(port))
+	<-done
+	if err != nil {
+		t.Fatalf("Execute() error = %v", err)
+	}
+	if !strings.Contains(stderr, "cancelled") {
+		t.Fatalf("stderr = %q", stderr)
+	}
+	if stdout != "" {
+		t.Fatalf("stdout = %q, want empty", stdout)
+	}
+}
+
+func openKillCmdTTY(t *testing.T) (*os.File, *os.File) {
+	t.Helper()
+
+	master, tty, err := pty.Open()
+	if err != nil {
+		t.Skip("pty:", err)
+	}
+	t.Cleanup(func() {
+		_ = master.Close()
+		_ = tty.Close()
+	})
+	return tty, master
 }

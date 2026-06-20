@@ -113,3 +113,83 @@ func TestRunKillsListenerIntegration(t *testing.T) {
 	}
 	t.Fatalf("listener still present on port %d after kill", port)
 }
+
+func TestPidsForInodeNoMatch(t *testing.T) {
+	pids, err := pidsForInode(999999999)
+	if err != nil {
+		t.Fatalf("pidsForInode() error = %v", err)
+	}
+	if len(pids) != 0 {
+		t.Fatalf("pids = %v, want none", pids)
+	}
+}
+
+func TestProcessNameCurrentProcess(t *testing.T) {
+	name := processName(os.Getpid())
+	if name == "" {
+		t.Fatal("expected process name for current pid")
+	}
+}
+
+func TestUnixKillerInvalidPID(t *testing.T) {
+	err := unixKiller{}.Kill(context.Background(), 99999999, true)
+	if err == nil {
+		t.Fatal("expected error killing invalid pid")
+	}
+}
+
+func TestListenerInodesNoListeners(t *testing.T) {
+	inodes, err := listenerInodes(59999)
+	if err != nil {
+		t.Fatalf("listenerInodes() error = %v", err)
+	}
+	if len(inodes) != 0 {
+		t.Fatalf("inodes = %v, want empty", inodes)
+	}
+}
+
+func TestParseProcNetTCP(t *testing.T) {
+	data := `  sl  local_address rem_address   st tx queue rx queue tr tm->when retrnsmt   uid  timeout inode
+   0: 0100007F:1F90 00000000:0000 0A 00000000:00000000 00:00000000 00000000  1000        0 4242 1 00000000ab12cd34 0 0 0 0 -1
+   1: 00000000:1F90 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 9999 1 00000000ab12cd35 0 0 0 0 -1
+   2: 0100007F:1F91 00000000:0000 0A 00000000:00000000 00:00000000 00000000  1000        0 1111 1 00000000ab12cd36 0 0 0 0 -1`
+
+	inodes, err := parseProcNetTCP(data, 8080)
+	if err != nil {
+		t.Fatalf("parseProcNetTCP() error = %v", err)
+	}
+	if len(inodes) != 2 || inodes[0] != 4242 || inodes[1] != 9999 {
+		t.Fatalf("inodes = %v", inodes)
+	}
+
+	inodes, err = parseProcNetTCP(data, 8081)
+	if err != nil {
+		t.Fatalf("parseProcNetTCP() error = %v", err)
+	}
+	if len(inodes) != 1 || inodes[0] != 1111 {
+		t.Fatalf("inodes = %v", inodes)
+	}
+}
+
+func TestParseProcNetTCPSkipsNonListenState(t *testing.T) {
+	data := `  sl  local_address rem_address   st tx queue rx queue tr tm->when retrnsmt   uid  timeout inode
+   0: 0100007F:1F90 0100007F:1F91 01 00000000:00000000 00:00000000 00000000  1000        0 4242 1 00000000ab12cd34 0 0 0 0 -1`
+
+	inodes, err := parseProcNetTCP(data, 8080)
+	if err != nil {
+		t.Fatalf("parseProcNetTCP() error = %v", err)
+	}
+	if len(inodes) != 0 {
+		t.Fatalf("inodes = %v, want none for non-listen state", inodes)
+	}
+}
+
+func TestParseProcNetTCPInvalidInode(t *testing.T) {
+	data := `  sl  local_address rem_address   st tx queue rx queue tr tm->when retrnsmt   uid  timeout inode
+   0: 0100007F:1F90 00000000:0000 0A 00000000:00000000 00:00000000 00000000  1000        0 not-an-inode 1 00000000ab12cd34 0 0 0 0 -1`
+
+	_, err := parseProcNetTCP(data, 8080)
+	if err == nil {
+		t.Fatal("expected parse error for invalid inode")
+	}
+}

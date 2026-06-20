@@ -4,8 +4,12 @@ import (
 	"context"
 	"errors"
 	"io"
+	"os"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/creack/pty"
 )
 
 type fakeFinder struct {
@@ -132,25 +136,141 @@ func TestFilterProtected(t *testing.T) {
 	}
 }
 
-func TestParseProcNetTCP(t *testing.T) {
-	data := `  sl  local_address rem_address   st tx queue rx queue tr tm->when retrnsmt   uid  timeout inode
-   0: 0100007F:1F90 00000000:0000 0A 00000000:00000000 00:00000000 00000000  1000        0 4242 1 00000000ab12cd34 0 0 0 0 -1
-   1: 00000000:1F90 00000000:0000 0A 00000000:00000000 00:00000000 00000000     0        0 9999 1 00000000ab12cd35 0 0 0 0 -1
-   2: 0100007F:1F91 00000000:0000 0A 00000000:00000000 00:00000000 00000000  1000        0 1111 1 00000000ab12cd36 0 0 0 0 -1`
+func TestRunFinderError(t *testing.T) {
+	_, err := Run(context.Background(), Options{
+		Port:   8080,
+		Finder: &fakeFinder{err: errors.New("finder failed")},
+	})
+	if err == nil || !strings.Contains(err.Error(), "finder failed") {
+		t.Fatalf("Run() error = %v", err)
+	}
+}
 
-	inodes, err := parseProcNetTCP(data, 8080)
-	if err != nil {
-		t.Fatalf("parseProcNetTCP() error = %v", err)
-	}
-	if len(inodes) != 2 || inodes[0] != 4242 || inodes[1] != 9999 {
-		t.Fatalf("inodes = %v", inodes)
-	}
+func TestRunContextCancelled(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
 
-	inodes, err = parseProcNetTCP(data, 8081)
-	if err != nil {
-		t.Fatalf("parseProcNetTCP() error = %v", err)
+	_, err := Run(ctx, Options{
+		Port:   8080,
+		Finder: contextAwareFinder{},
+		Yes:    true,
+	})
+	if err != context.Canceled {
+		t.Fatalf("Run() error = %v, want context.Canceled", err)
 	}
-	if len(inodes) != 1 || inodes[0] != 1111 {
-		t.Fatalf("inodes = %v", inodes)
+}
+
+type contextAwareFinder struct{}
+
+func (contextAwareFinder) FindListeners(ctx context.Context, port int) ([]Process, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	return nil, nil
+}
+
+func TestRunCancelled(t *testing.T) {
+	tty, master := openKillTTY(t)
+	defer func() { _ = master.Close() }()
+	defer func() { _ = tty.Close() }()
+
+	done := make(chan struct{})
+	go func() {
+		time.Sleep(20 * time.Millisecond)
+		_, _ = master.Write([]byte("n\n"))
+		close(done)
+	}()
+
+	result, err := Run(context.Background(), Options{
+		Port:   8080,
+		Finder: &fakeFinder{processes: []Process{{PID: 42}}},
+		Input:  tty,
+		Output: tty,
+	})
+	<-done
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if !result.Cancelled {
+		t.Fatal("expected cancelled result")
+	}
+}
+
+func TestRunConfirmedKill(t *testing.T) {
+	tty, master := openKillTTY(t)
+	defer func() { _ = master.Close() }()
+	defer func() { _ = tty.Close() }()
+
+	done := make(chan struct{})
+	go func() {
+		time.Sleep(20 * time.Millisecond)
+		_, _ = master.Write([]byte("y\n"))
+		close(done)
+	}()
+
+	killer := &fakeKiller{}
+	result, err := Run(context.Background(), Options{
+		Port:   8080,
+		Finder: &fakeFinder{processes: []Process{{PID: 42}}},
+		Input:  tty,
+		Output: tty,
+		Killer: killer,
+	})
+	<-done
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if result.Cancelled || len(result.Killed) != 1 {
+		t.Fatalf("result = %+v", result)
+	}
+}
+
+func openKillTTY(t *testing.T) (*os.File, *os.File) {
+	t.Helper()
+
+	master, tty, err := pty.Open()
+	if err != nil {
+		t.Skip("pty:", err)
+	}
+	t.Cleanup(func() {
+		_ = master.Close()
+		_ = tty.Close()
+	})
+	return tty, master
+}
+
+func TestRunKillsWithTermSignal(t *testing.T) {
+	killer := &fakeKiller{}
+	result, err := Run(context.Background(), Options{
+		Port:   8080,
+		Yes:    true,
+		Force:  false,
+		Finder: &fakeFinder{processes: []Process{{PID: 42, Name: "node"}}},
+		Killer: killer,
+	})
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if len(result.Killed) != 1 {
+		t.Fatalf("Killed = %+v", result.Killed)
+	}
+	if len(killer.force) != 1 || killer.force[0] {
+		t.Fatalf("killer.force = %v, want SIGTERM", killer.force)
+	}
+}
+
+func TestUnsupportedFinder(t *testing.T) {
+	_, err := unsupportedFinder{}.FindListeners(context.Background(), 8080)
+	if err == nil || !strings.Contains(err.Error(), "not supported") {
+		t.Fatalf("FindListeners() error = %v", err)
+	}
+}
+
+func TestDefaultFinderAndKiller(t *testing.T) {
+	if DefaultFinder() == nil {
+		t.Fatal("DefaultFinder() returned nil")
+	}
+	if DefaultKiller() == nil {
+		t.Fatal("DefaultKiller() returned nil")
 	}
 }
