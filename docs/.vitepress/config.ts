@@ -78,8 +78,10 @@ export default defineConfig({
       provider: 'local',
     },
     footer: {
-      message: 'Released under the MIT License.',
-      copyright: 'Copyright © Robert27',
+      message:
+        'Released under the <a href="https://github.com/Robert27/eggl-cli/blob/main/LICENSE">MIT License</a>.',
+      copyright:
+        'Copyright © <a href="https://github.com/Robert27">Robert Eggl</a> · <a href="/imprint">Imprint</a>',
     },
   },
 })

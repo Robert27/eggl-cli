@@ -43,7 +43,12 @@
 
 .VPNavBar {
   backdrop-filter: blur(12px);
-  background: rgba(9, 9, 11, 0.85) !important;
+  background: color-mix(in srgb, var(--vp-c-bg) 88%, transparent) !important;
+  border-bottom: 1px solid var(--vp-c-divider);
+}
+
+.VPNavBar.has-sidebar .divider-line {
+  background-color: var(--vp-c-divider);
 }
 
 html:has(.landing) .VPNav,

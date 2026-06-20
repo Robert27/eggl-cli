@@ -221,8 +221,11 @@ function getDisplayedCmd(index: number): string {
     </section>
 
     <footer class="landing-footer">
-      <span>MIT © Robert27</span>
-      <a href="https://github.com/Robert27/eggl-cli">github.com/Robert27/eggl-cli</a>
+      <span>MIT © <a href="https://github.com/Robert27">Robert Eggl</a></span>
+      <div class="footer-links">
+        <a href="/imprint">Imprint</a>
+        <a href="https://github.com/Robert27/eggl-cli">GitHub</a>
+      </div>
     </footer>
   </div>
 </template>
@@ -754,6 +757,11 @@ function getDisplayedCmd(index: number): string {
 
 .landing-footer a:hover {
   color: var(--accent);
+}
+
+.footer-links {
+  display: flex;
+  gap: 1.5rem;
 }
 
 .animate-in {
