@@ -14,7 +14,7 @@ OUTPUT ?= bin/$(BINARY)
 GOPATH := $(shell go env GOPATH)
 GORELEASER := $(GOPATH)/bin/goreleaser
 
-.PHONY: build install release-build release-snapshot test fmt check hooks clean
+.PHONY: build install release-build release-snapshot test fmt check hooks clean docs-install docs-dev docs-build docs-preview
 
 build:
 	go build -ldflags "$(LDFLAGS)" -o bin/$(BINARY) .
@@ -57,3 +57,15 @@ hooks:
 
 clean:
 	rm -rf bin/
+
+docs-install:
+	cd docs && npm ci
+
+docs-dev:
+	cd docs && npm run dev
+
+docs-build:
+	cd docs && npm ci && npm run build
+
+docs-preview:
+	cd docs && npm run preview

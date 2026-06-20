@@ -40,6 +40,8 @@ make build
 
 ## Usage
 
+Documentation: run `make docs-dev` and open the local URL, or see the [docs site](https://robert27.github.io/eggl-cli/) after deployment.
+
 ```bash
 eggl --help
 eggl version
