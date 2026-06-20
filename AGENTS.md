@@ -70,3 +70,13 @@ Makefile          # build, install, test, release-snapshot
 - No AI-generated comments; only meaningful comments for non-obvious logic.
 - No unnecessary Markdown files unless requested.
 - Keep agent output compact and token-efficient (comments and prose-not code logic).
+
+## Cursor Cloud specific instructions
+
+Pure Go CLI (`eggl`); no servers, databases, or other services to run. Go toolchain and module deps are already present; build/lint/test via `make build`, `go vet ./...`, and `make check` (see Commands above). Run the built binary with `./bin/eggl <command>`.
+
+Non-obvious caveats:
+
+- `eggl dedash` defaults to `--path .`, so running it from the repo root rewrites em-dashes in tracked source files. Always pass an explicit `--path` (and `--yes`, required when stdin is not a TTY) to avoid mutating the repo.
+- `eggl doctor` exits non-zero in this environment because `kubectl` and `tailscale` are not installed. That is expected; they are optional external tools only needed by the `env` and `pf` commands, which shell out to them.
+- `eggl env init` writes `~/.config/eggl/config.yaml`; `env show`/`env toggle` and `pf` require `kubectl` (and Tailscale for account switching) to do anything useful.
