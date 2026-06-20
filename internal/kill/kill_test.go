@@ -274,3 +274,38 @@ func TestDefaultFinderAndKiller(t *testing.T) {
 		t.Fatal("DefaultKiller() returned nil")
 	}
 }
+
+func TestRunConfirmPromptError(t *testing.T) {
+	tty, master := openKillTTY(t)
+
+	done := make(chan struct{})
+	go func() {
+		time.Sleep(20 * time.Millisecond)
+		_ = master.Close()
+		close(done)
+	}()
+
+	_, err := Run(context.Background(), Options{
+		Port:   8080,
+		Finder: &fakeFinder{processes: []Process{{PID: 42}}},
+		Input:  tty,
+		Output: tty,
+	})
+	<-done
+	if err == nil {
+		t.Fatal("expected confirm prompt error")
+	}
+}
+
+func TestRunUsesDefaultInputOutput(t *testing.T) {
+	_, err := Run(context.Background(), Options{
+		Port:   8080,
+		Yes:    true,
+		Finder: &fakeFinder{},
+		Input:  nil,
+		Output: nil,
+	})
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+}

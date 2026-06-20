@@ -131,6 +131,12 @@ func TestProcessNameCurrentProcess(t *testing.T) {
 	}
 }
 
+func TestProcessNameInvalidPID(t *testing.T) {
+	if processName(999999999) != "" {
+		t.Fatal("expected empty name for invalid pid")
+	}
+}
+
 func TestUnixKillerInvalidPID(t *testing.T) {
 	err := unixKiller{}.Kill(context.Background(), 99999999, true)
 	if err == nil {
@@ -145,6 +151,16 @@ func TestListenerInodesNoListeners(t *testing.T) {
 	}
 	if len(inodes) != 0 {
 		t.Fatalf("inodes = %v, want empty", inodes)
+	}
+}
+
+func TestLinuxFinderContextCancelled(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err := linuxFinder{}.FindListeners(ctx, 8080)
+	if err != context.Canceled {
+		t.Fatalf("FindListeners() error = %v, want context.Canceled", err)
 	}
 }
 
@@ -191,5 +207,20 @@ func TestParseProcNetTCPInvalidInode(t *testing.T) {
 	_, err := parseProcNetTCP(data, 8080)
 	if err == nil {
 		t.Fatal("expected parse error for invalid inode")
+	}
+}
+
+func TestParseProcNetTCPSkipsMalformedLines(t *testing.T) {
+	data := `  sl  local_address rem_address   st tx queue rx queue tr tm->when retrnsmt   uid  timeout inode
+   0: malformed line without enough fields
+   1: 0100007F:1F90 00000000:0000 0A 00000000:00000000 00:00000000 00000000  1000        0 4242 1 00000000ab12cd34 0 0 0 0 -1
+   2: 0100007F:badlocal 00000000:0000 0A 00000000:00000000 00:00000000 00000000  1000        0 1111 1 00000000ab12cd36 0 0 0 0 -1`
+
+	inodes, err := parseProcNetTCP(data, 8080)
+	if err != nil {
+		t.Fatalf("parseProcNetTCP() error = %v", err)
+	}
+	if len(inodes) != 1 || inodes[0] != 4242 {
+		t.Fatalf("inodes = %v", inodes)
 	}
 }
