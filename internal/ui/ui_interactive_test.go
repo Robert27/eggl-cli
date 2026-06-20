@@ -140,6 +140,25 @@ func TestRenderDedashInteractiveModified(t *testing.T) {
 	}
 }
 
+func TestRenderEOLInteractiveModified(t *testing.T) {
+	t.Setenv("NO_COLOR", "")
+
+	w, master := openTestTTY(t)
+	got := renderPTY(t, master, w, func(out io.Writer) {
+		RenderEOL(out, EOLSummary{
+			Scanned:           2,
+			Modified:          1,
+			TotalReplacements: 2,
+			Changes:           []EOLChange{{Path: "a.md", Replacements: 2}},
+		})
+	})
+	for _, want := range []string{"modified 1", "a.md"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("expected %q in styled eol output, got %q", want, got)
+		}
+	}
+}
+
 func TestRenderCommandHelpInteractive(t *testing.T) {
 	t.Setenv("NO_COLOR", "")
 

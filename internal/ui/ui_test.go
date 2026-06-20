@@ -367,9 +367,10 @@ func TestRenderEOLDryRunPlain(t *testing.T) {
 		TotalReplacements: 2,
 		Changes:           []EOLChange{{Path: "readme.md", Replacements: 2}},
 		DryRun:            true,
+		Skipped:           1,
 	})
 	got := buf.String()
-	if !strings.Contains(got, "dry-run:") || !strings.Contains(got, "would modify 1") {
+	if !strings.Contains(got, "dry-run:") || !strings.Contains(got, "skipped 1") {
 		t.Fatalf("expected dry-run summary, got %q", got)
 	}
 }

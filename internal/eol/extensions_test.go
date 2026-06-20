@@ -7,7 +7,7 @@ import (
 )
 
 func TestNormalizeExtensions(t *testing.T) {
-	got := normalizeExtensions([]string{" md ", "txt,.go", ".MD", "txt"})
+	got := normalizeExtensions([]string{" md ", "txt,.go", ".MD", "txt", "", "  "})
 	want := []string{".md", ".txt", ".go"}
 	if len(got) != len(want) {
 		t.Fatalf("normalizeExtensions() = %v, want %v", got, want)

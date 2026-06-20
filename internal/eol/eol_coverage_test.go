@@ -452,3 +452,241 @@ func writeEOLGitFile(t *testing.T, dir, name, content string) {
 		t.Fatal(err)
 	}
 }
+
+func TestShouldSkipFileEdgeCases(t *testing.T) {
+	if !shouldSkipFile(".DS_Store") {
+		t.Fatal("expected .DS_Store to be skipped")
+	}
+	if !shouldSkipFile("bundle.min.js") {
+		t.Fatal("expected .min.js to be skipped")
+	}
+	if !shouldSkipFile("archive.zip") {
+		t.Fatal("expected .zip to be skipped")
+	}
+}
+
+func TestRunSkipsOversizedFileInWalk(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "big.md")
+	if err := os.WriteFile(path, []byte("\r\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Truncate(path, MaxFileSize+1); err != nil {
+		t.Fatal(err)
+	}
+
+	report, err := Run(context.Background(), defaultOpts(root))
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if report.Modified != 0 || report.Skipped != 1 {
+		t.Fatalf("report = %+v", report)
+	}
+}
+
+func TestRunContextCancelBeforeScan(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err := Run(ctx, Options{Root: t.TempDir(), Yes: true})
+	if err != context.Canceled {
+		t.Fatalf("Run() error = %v, want context.Canceled", err)
+	}
+}
+
+func TestRunConfirmPromptError(t *testing.T) {
+	root := t.TempDir()
+	writeTestFile(t, root, "readme.md", []byte("hello\r\n"))
+
+	tty, master := openEOLTTY(t)
+	done := make(chan struct{})
+	go func() {
+		time.Sleep(20 * time.Millisecond)
+		_ = master.Close()
+		close(done)
+	}()
+
+	_, err := Run(context.Background(), Options{
+		Root:   root,
+		Input:  tty,
+		Output: tty,
+	})
+	<-done
+	if err == nil {
+		t.Fatal("expected confirm prompt error")
+	}
+}
+
+func TestRunConfirmedYes(t *testing.T) {
+	root := t.TempDir()
+	writeTestFile(t, root, "readme.md", []byte("hello\r\n"))
+
+	tty, master := openEOLTTY(t)
+	defer func() { _ = master.Close() }()
+	defer func() { _ = tty.Close() }()
+
+	done := make(chan struct{})
+	go func() {
+		time.Sleep(20 * time.Millisecond)
+		_, _ = master.Write([]byte("y\n"))
+		close(done)
+	}()
+
+	report, err := Run(context.Background(), Options{
+		Root:   root,
+		Input:  tty,
+		Output: tty,
+	})
+	<-done
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if report.Modified != 1 {
+		t.Fatalf("report = %+v", report)
+	}
+}
+
+func TestRunGitDiffSkipsUnreadableFile(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "secret.md")
+	if err := os.WriteFile(path, []byte("secret\r\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(path, 0o000); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(path, 0o644) })
+
+	report, err := Run(context.Background(), Options{
+		Root:    root,
+		Yes:     true,
+		GitDiff: true,
+		Git: &fakeGitDiff{
+			inside: true,
+			root:   root,
+			files:  []string{"secret.md"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if report.Skipped != 1 || report.Modified != 0 {
+		t.Fatalf("report = %+v", report)
+	}
+}
+
+func TestRunWalkSkipsDotDirectory(t *testing.T) {
+	root := t.TempDir()
+	hiddenDir := filepath.Join(root, ".hidden")
+	if err := os.MkdirAll(hiddenDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeTestFile(t, hiddenDir, "readme.md", []byte("hello\r\n"))
+
+	report, err := Run(context.Background(), defaultOpts(root))
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if report.Scanned != 0 {
+		t.Fatalf("report = %+v", report)
+	}
+}
+
+func TestRunWriteFileError(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "readme.md")
+	writeTestFile(t, root, "readme.md", []byte("hello\r\n"))
+	if err := os.Chmod(path, 0o444); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(root, 0o555); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chmod(root, 0o755)
+		_ = os.Chmod(path, 0o644)
+	})
+
+	_, err := Run(context.Background(), Options{Root: root, Yes: true})
+	if err == nil {
+		t.Fatal("expected write error")
+	}
+}
+
+func TestRunGitDiffResolveRepoRootError(t *testing.T) {
+	root := t.TempDir()
+	writeTestFile(t, root, "readme.md", []byte("hello\r\n"))
+
+	_, err := Run(context.Background(), Options{
+		Root:    root,
+		GitDiff: true,
+		Git: &fakeGitDiff{
+			inside: true,
+			root:   filepath.Join(root, "missing-repo-root"),
+			files:  []string{"readme.md"},
+		},
+	})
+	if err == nil {
+		t.Fatal("expected repo root resolve error")
+	}
+}
+
+func TestRunGitDiffResolveScanRootError(t *testing.T) {
+	root := t.TempDir()
+	badScanRoot := filepath.Join(root, "scan")
+	if err := os.Symlink(filepath.Join(root, "missing"), badScanRoot); err != nil {
+		t.Skip("symlinks not supported:", err)
+	}
+	writeTestFile(t, root, "readme.md", []byte("hello\r\n"))
+
+	_, err := Run(context.Background(), Options{
+		Root:    badScanRoot,
+		GitDiff: true,
+		Git: &fakeGitDiff{
+			inside: true,
+			root:   root,
+			files:  []string{"readme.md"},
+		},
+	})
+	if err == nil {
+		t.Fatal("expected scan root resolve error")
+	}
+}
+
+func TestRunSkipsUnreadableFileInWalk(t *testing.T) {
+	root := t.TempDir()
+	path := filepath.Join(root, "locked.md")
+	if err := os.WriteFile(path, []byte("hello\r\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(path, 0o000); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(path, 0o644) })
+
+	report, err := Run(context.Background(), defaultOpts(root))
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if report.Skipped != 1 || report.Modified != 0 {
+		t.Fatalf("report = %+v", report)
+	}
+}
+
+func TestRunWalkErrorsOnInaccessibleDirectory(t *testing.T) {
+	root := t.TempDir()
+	sub := filepath.Join(root, "sub")
+	if err := os.Mkdir(sub, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeTestFile(t, sub, "readme.md", []byte("hello\r\n"))
+	if err := os.Chmod(sub, 0o000); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(sub, 0o755) })
+
+	_, err := Run(context.Background(), defaultOpts(root))
+	if err == nil {
+		t.Fatal("expected walk error")
+	}
+}
