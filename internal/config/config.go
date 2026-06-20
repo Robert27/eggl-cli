@@ -26,6 +26,7 @@ const (
 type Config struct {
 	Profiles     map[string]Profile     `yaml:"profiles"`
 	PortForwards map[string]PortForward `yaml:"port_forwards"`
+	Directories  map[string]string      `yaml:"directories"`
 }
 
 type Profile struct {
@@ -77,8 +78,8 @@ func Load(path string) (*Config, error) {
 }
 
 func (c *Config) Validate() error {
-	if len(c.Profiles) == 0 {
-		return fmt.Errorf("config: at least one profile is required")
+	if len(c.Profiles) == 0 && len(c.Directories) == 0 {
+		return fmt.Errorf("config: at least one profile or directory is required")
 	}
 
 	seenTargets := make(map[string]string, len(c.Profiles))
@@ -101,6 +102,15 @@ func (c *Config) Validate() error {
 			return fmt.Errorf("config: profiles %q and %q share the same kube_context and tailscale_account", other, name)
 		}
 		seenTargets[key] = name
+	}
+
+	for name, dir := range c.Directories {
+		if strings.TrimSpace(name) == "" {
+			return fmt.Errorf("config: directory name must not be empty")
+		}
+		if strings.TrimSpace(dir) == "" {
+			return fmt.Errorf("config: directory %q: path is required", name)
+		}
 	}
 
 	for name, pf := range c.PortForwards {
@@ -198,6 +208,35 @@ func (c *Config) PortForwardNames() []string {
 	return names
 }
 
+func (c *Config) DirectoryNames() []string {
+	names := make([]string, 0, len(c.Directories))
+	for name := range c.Directories {
+		names = append(names, name)
+	}
+	return names
+}
+
+func ExpandPath(path string) (string, error) {
+	path = strings.TrimSpace(path)
+	if path == "" {
+		return "", fmt.Errorf("empty path")
+	}
+	if !strings.HasPrefix(path, "~") {
+		return filepath.Clean(path), nil
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return "", fmt.Errorf("expand path: %w", err)
+	}
+	if path == "~" {
+		return home, nil
+	}
+	if strings.HasPrefix(path, "~/") {
+		return filepath.Clean(filepath.Join(home, path[2:])), nil
+	}
+	return "", fmt.Errorf("invalid home path %q", path)
+}
+
 func InitTemplate() string {
 	return `# eggl env profiles — edit with your kubectl contexts and Tailscale account refs.
 # Account refs: id from ` + "`tailscale switch --list`" + `, or tailnet slug, or account email.
@@ -215,6 +254,10 @@ func InitTemplate() string {
 #     namespace: longhorn-system
 #     resource: svc/longhorn-frontend
 #     ports: ["8080:80"]
+#
+# directories (optional) — use with: cd "$(eggl cd <name>)"
+#   homelab: ~/projects/homelab
+#   work: /Users/me/code/work
 
 profiles:
   example-a:
