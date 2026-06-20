@@ -51,9 +51,12 @@
   background-color: var(--vp-c-divider);
 }
 
+.VPFooter {
+  display: none !important;
+}
+
 html:has(.landing) .VPNav,
-html:has(.landing) .VPSidebar,
-html:has(.landing) .VPFooter {
+html:has(.landing) .VPSidebar {
   display: none !important;
 }
 

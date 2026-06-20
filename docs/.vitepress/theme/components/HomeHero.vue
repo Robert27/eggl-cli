@@ -219,14 +219,6 @@ function getDisplayedCmd(index: number): string {
       </div>
       <a href="/guide/installation" class="btn btn-primary">Installation guide →</a>
     </section>
-
-    <footer class="landing-footer">
-      <span>MIT © <a href="https://github.com/Robert27">Robert Eggl</a></span>
-      <div class="footer-links">
-        <a href="/imprint">Imprint</a>
-        <a href="https://github.com/Robert27/eggl-cli">GitHub</a>
-      </div>
-    </footer>
   </div>
 </template>
 
@@ -569,8 +561,7 @@ function getDisplayedCmd(index: number): string {
 }
 
 .commands-section,
-.features-section,
-.cta-section {
+.features-section {
   position: relative;
   z-index: 1;
   max-width: 1200px;
@@ -698,11 +689,14 @@ function getDisplayedCmd(index: number): string {
 }
 
 .cta-section {
+  position: relative;
+  z-index: 1;
   text-align: center;
   padding: 5rem 2rem;
   border-radius: 24px;
-  margin: 2rem;
-  max-width: calc(1200px - 4rem);
+  margin: 2rem auto 4rem;
+  max-width: 720px;
+  width: calc(100% - 4rem);
   border: 1px solid var(--border);
   background: linear-gradient(180deg, rgba(249, 115, 22, 0.08), transparent);
 }
@@ -734,34 +728,6 @@ function getDisplayedCmd(index: number): string {
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.85rem;
   color: var(--text);
-}
-
-.landing-footer {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 2rem;
-  border-top: 1px solid var(--border);
-  font-size: 0.85rem;
-  color: var(--muted);
-}
-
-.landing-footer a {
-  color: var(--muted);
-  text-decoration: none;
-}
-
-.landing-footer a:hover {
-  color: var(--accent);
-}
-
-.footer-links {
-  display: flex;
-  gap: 1.5rem;
 }
 
 .animate-in {
