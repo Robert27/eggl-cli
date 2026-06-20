@@ -125,6 +125,66 @@ func TestDefaultPathHome(t *testing.T) {
 	}
 }
 
+func TestLoadWithDirectories(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.yaml")
+	if err := os.WriteFile(path, []byte(`
+directories:
+  homelab: ~/projects/homelab
+  work: /tmp/work
+`), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("Load() error = %v", err)
+	}
+	if cfg.Directories["homelab"] != "~/projects/homelab" {
+		t.Fatalf("directories = %+v", cfg.Directories)
+	}
+}
+
+func TestValidateDirectoryFields(t *testing.T) {
+	cfg := &Config{
+		Directories: map[string]string{
+			"": "/tmp",
+		},
+	}
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected error for empty directory name")
+	}
+
+	cfg.Directories = map[string]string{
+		"work": "",
+	}
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected error for empty directory path")
+	}
+}
+
+func TestExpandPath(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+
+	got, err := ExpandPath("~/projects/homelab")
+	if err != nil {
+		t.Fatalf("ExpandPath() error = %v", err)
+	}
+	want := filepath.Join(home, "projects", "homelab")
+	if got != want {
+		t.Fatalf("ExpandPath() = %q, want %q", got, want)
+	}
+
+	got, err = ExpandPath("~")
+	if err != nil {
+		t.Fatalf("ExpandPath(~) error = %v", err)
+	}
+	if got != home {
+		t.Fatalf("ExpandPath(~) = %q, want %q", got, home)
+	}
+}
+
 func TestProfileAndPortForwardNames(t *testing.T) {
 	cfg := &Config{
 		Profiles: map[string]Profile{
@@ -145,6 +205,20 @@ func TestProfileAndPortForwardNames(t *testing.T) {
 	pfNames := cfg.PortForwardNames()
 	if len(pfNames) != 2 {
 		t.Fatalf("PortForwardNames len = %d", len(pfNames))
+	}
+}
+
+func TestDirectoryNames(t *testing.T) {
+	cfg := &Config{
+		Directories: map[string]string{
+			"beta":  "/tmp/b",
+			"alpha": "/tmp/a",
+		},
+	}
+
+	names := cfg.DirectoryNames()
+	if len(names) != 2 {
+		t.Fatalf("DirectoryNames len = %d", len(names))
 	}
 }
 

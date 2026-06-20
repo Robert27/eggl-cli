@@ -51,6 +51,8 @@ eggl env show
 eggl env toggle
 eggl pf list
 eggl pf longhorn
+eggl cd list
+eggl cd homelab
 eggl completion zsh
 ```
 
@@ -83,6 +85,26 @@ port_forwards:
 ```
 
 `ports` is optional (defaults to `8080:80`). Run `eggl pf list` or `eggl pf longhorn` (blocks until Ctrl+C).
+
+### Quick cd (`eggl cd`)
+
+Named directories in the same config file. The command prints the resolved path for use in your shell:
+
+```yaml
+directories:
+  homelab: ~/projects/homelab
+  work: /Users/me/code/work
+```
+
+```bash
+cd "$(eggl cd homelab)"
+```
+
+Optional shell wrapper:
+
+```bash
+egglcd() { cd "$(eggl cd "$1")" || return; }
+```
 
 ## Shell completion
 
