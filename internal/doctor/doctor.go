@@ -8,7 +8,7 @@ import (
 	"os/exec"
 	"runtime"
 
-	"github.com/Robert27/eggl-cli/internal/config"
+	"github.com/roberteggl/eggl-cli/internal/config"
 )
 
 type Options struct {

@@ -1,10 +1,10 @@
 # eggl-cli
 
-[![Release](https://img.shields.io/github/v/release/Robert27/eggl-cli?style=flat-square)](https://github.com/Robert27/eggl-cli/releases)
-[![CI](https://github.com/Robert27/eggl-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/Robert27/eggl-cli/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/Robert27/eggl-cli/graph/badge.svg)](https://codecov.io/gh/Robert27/eggl-cli)
-[![Go](https://img.shields.io/github/go-mod/go-version/Robert27/eggl-cli?style=flat-square)](https://go.dev/)
-[![License](https://img.shields.io/github/license/Robert27/eggl-cli?style=flat-square)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/roberteggl/eggl-cli?style=flat-square)](https://github.com/roberteggl/eggl-cli/releases)
+[![CI](https://github.com/roberteggl/eggl-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/roberteggl/eggl-cli/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/roberteggl/eggl-cli/graph/badge.svg)](https://codecov.io/gh/roberteggl/eggl-cli)
+[![Go](https://img.shields.io/github/go-mod/go-version/roberteggl/eggl-cli?style=flat-square)](https://go.dev/)
+[![License](https://img.shields.io/github/license/roberteggl/eggl-cli?style=flat-square)](LICENSE)
 
 A general-purpose helper CLI built with Go and [Cobra](https://github.com/spf13/cobra).
 
@@ -13,16 +13,16 @@ A general-purpose helper CLI built with Go and [Cobra](https://github.com/spf13/
 **Homebrew:**
 
 ```bash
-brew tap Robert27/tap
+brew tap roberteggl/tap
 brew install eggl-cli
 ```
 
 Shell completions for bash, zsh, and fish are installed automatically.
 
-**Without Homebrew:** download the archive for your OS/arch from [GitHub Releases](https://github.com/Robert27/eggl-cli/releases), extract `eggl` (or `eggl.exe` on Windows), and put it on your `PATH`. Or, with Go installed:
+**Without Homebrew:** download the archive for your OS/arch from [GitHub Releases](https://github.com/roberteggl/eggl-cli/releases), extract `eggl` (or `eggl.exe` on Windows), and put it on your `PATH`. Or, with Go installed:
 
 ```bash
-go install github.com/Robert27/eggl-cli@latest
+go install github.com/roberteggl/eggl-cli@latest
 ```
 
 From source:

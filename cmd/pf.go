@@ -5,8 +5,8 @@ import (
 	"log/slog"
 	"strings"
 
-	"github.com/Robert27/eggl-cli/internal/config"
-	"github.com/Robert27/eggl-cli/internal/pf"
+	"github.com/roberteggl/eggl-cli/internal/config"
+	"github.com/roberteggl/eggl-cli/internal/pf"
 	"github.com/spf13/cobra"
 )
 

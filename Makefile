@@ -1,4 +1,4 @@
-MODULE := github.com/Robert27/eggl-cli
+MODULE := github.com/roberteggl/eggl-cli
 BINARY := eggl
 VERSION ?= dev
 COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo none)

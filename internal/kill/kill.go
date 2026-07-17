@@ -6,7 +6,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/Robert27/eggl-cli/internal/ui"
+	"github.com/roberteggl/eggl-cli/internal/ui"
 )
 
 type Process struct {

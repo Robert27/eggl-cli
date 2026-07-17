@@ -15,9 +15,9 @@ builds:
       - CGO_ENABLED=0
     ldflags:
       - -s -w
-      - -X github.com/Robert27/eggl-cli/cmd.version={{ .Tag }}
-      - -X github.com/Robert27/eggl-cli/cmd.commit={{ .ShortCommit }}
-      - -X github.com/Robert27/eggl-cli/cmd.date={{ .Date }}
+      - -X github.com/roberteggl/eggl-cli/cmd.version={{ .Tag }}
+      - -X github.com/roberteggl/eggl-cli/cmd.commit={{ .ShortCommit }}
+      - -X github.com/roberteggl/eggl-cli/cmd.date={{ .Date }}
     goos:
       - linux
       - darwin
@@ -43,7 +43,7 @@ checksum:
 
 release:
   github:
-    owner: Robert27
+    owner: roberteggl
     name: eggl-cli
 
 brews:
@@ -52,11 +52,11 @@ brews:
       - eggl
     directory: Formula
     repository:
-      owner: Robert27
+      owner: roberteggl
       name: homebrew-tap
       branch: main
       token: "{{ .Env.TAP_GITHUB_TOKEN }}"
-    homepage: "https://github.com/Robert27/eggl-cli"
+    homepage: "https://github.com/roberteggl/eggl-cli"
     description: "General-purpose helper CLI"
     license: "MIT"
     commit_author:

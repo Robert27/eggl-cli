@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/Robert27/eggl-cli/internal/config"
-	"github.com/Robert27/eggl-cli/internal/env"
-	"github.com/Robert27/eggl-cli/internal/tailscale"
-	"github.com/Robert27/eggl-cli/internal/ui"
+	"github.com/roberteggl/eggl-cli/internal/config"
+	"github.com/roberteggl/eggl-cli/internal/env"
+	"github.com/roberteggl/eggl-cli/internal/tailscale"
+	"github.com/roberteggl/eggl-cli/internal/ui"
 	"github.com/spf13/cobra"
 )
 

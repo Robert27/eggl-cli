@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/Robert27/eggl-cli/internal/git"
+	"github.com/roberteggl/eggl-cli/internal/git"
 	"github.com/spf13/cobra"
 )
 

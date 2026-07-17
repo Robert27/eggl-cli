@@ -8,7 +8,7 @@ Security fixes are applied on the latest release only. Older tags are not mainta
 
 ## Reporting a vulnerability
 
-If you believe you have found a security issue, please open a [private security advisory](https://github.com/Robert27/eggl-cli/security/advisories/new) on GitHub, or email the maintainer via their GitHub profile.
+If you believe you have found a security issue, please open a [private security advisory](https://github.com/roberteggl/eggl-cli/security/advisories/new) on GitHub, or email the maintainer via their GitHub profile.
 
 Please include:
 
@@ -31,7 +31,7 @@ I aim to acknowledge reports within a few days. Critical issues in supported rel
 **Out of scope**
 
 - Bugs in third-party tools `eggl doctor` checks (Homebrew, Git, etc.)
-- Problems caused by running untrusted binaries not obtained from [GitHub Releases](https://github.com/Robert27/eggl-cli/releases) or the official Homebrew tap
+- Problems caused by running untrusted binaries not obtained from [GitHub Releases](https://github.com/roberteggl/eggl-cli/releases) or the official Homebrew tap
 - General hardening requests with no demonstrated exploit
 
 ## Safe use

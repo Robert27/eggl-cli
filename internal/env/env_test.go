@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Robert27/eggl-cli/internal/tailscale"
+	"github.com/roberteggl/eggl-cli/internal/tailscale"
 )
 
 type fakeKube struct {

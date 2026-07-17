@@ -10,8 +10,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/Robert27/eggl-cli/internal/git"
-	"github.com/Robert27/eggl-cli/internal/ui"
+	"github.com/roberteggl/eggl-cli/internal/git"
+	"github.com/roberteggl/eggl-cli/internal/ui"
 )
 
 const emDash = "\u2014"

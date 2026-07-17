@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/Robert27/eggl-cli/internal/eol"
-	"github.com/Robert27/eggl-cli/internal/ui"
+	"github.com/roberteggl/eggl-cli/internal/eol"
+	"github.com/roberteggl/eggl-cli/internal/ui"
 	"github.com/spf13/cobra"
 )
 

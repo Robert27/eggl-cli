@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/Robert27/eggl-cli/internal/cd"
-	"github.com/Robert27/eggl-cli/internal/config"
+	"github.com/roberteggl/eggl-cli/internal/cd"
+	"github.com/roberteggl/eggl-cli/internal/config"
 	"github.com/spf13/cobra"
 )
 

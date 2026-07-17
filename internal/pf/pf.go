@@ -7,8 +7,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/Robert27/eggl-cli/internal/config"
-	"github.com/Robert27/eggl-cli/internal/kube"
+	"github.com/roberteggl/eggl-cli/internal/config"
+	"github.com/roberteggl/eggl-cli/internal/kube"
 )
 
 const defaultPorts = "8080:80"

@@ -1,6 +1,6 @@
 package main
 
-import "github.com/Robert27/eggl-cli/cmd"
+import "github.com/roberteggl/eggl-cli/cmd"
 
 func main() {
 	cmd.Execute()

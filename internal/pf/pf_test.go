@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Robert27/eggl-cli/internal/config"
+	"github.com/roberteggl/eggl-cli/internal/config"
 )
 
 type recordingKube struct {

@@ -123,8 +123,13 @@ func ConfirmPrompt(w io.Writer, in io.Reader, prompt string) (bool, error) {
 	}
 
 	line, err := bufio.NewReader(in).ReadString('\n')
-	if err != nil && err != io.EOF {
-		return false, err
+	if err != nil {
+		if err == io.EOF && strings.TrimSpace(line) == "" {
+			return false, err
+		}
+		if err != io.EOF {
+			return false, err
+		}
 	}
 
 	line = strings.TrimSpace(strings.ToLower(line))

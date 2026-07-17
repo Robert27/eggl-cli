@@ -1,4 +1,4 @@
-module github.com/Robert27/eggl-cli
+module github.com/roberteggl/eggl-cli
 
 go 1.26.3
 

@@ -11,25 +11,38 @@ import (
 	"testing"
 	"time"
 
-	"github.com/Robert27/eggl-cli/internal/kill"
 	"github.com/creack/pty"
+	"github.com/roberteggl/eggl-cli/internal/kill"
 )
 
-func TestHoldPortHelper(t *testing.T) {
-	if os.Getenv("EGGL_KILL_TEST_PORT") == "" {
-		t.Skip("helper only")
+func TestMain(m *testing.M) {
+	portStr := os.Getenv("EGGL_HOLD_PORT")
+	if portStr == "" {
+		os.Exit(m.Run())
 	}
 
-	port, err := strconv.Atoi(os.Getenv("EGGL_KILL_TEST_PORT"))
+	port, err := strconv.Atoi(portStr)
 	if err != nil {
-		t.Fatalf("EGGL_KILL_TEST_PORT: %v", err)
+		fmt.Fprintf(os.Stderr, "EGGL_HOLD_PORT: %v\n", err)
+		os.Exit(1)
 	}
 
 	ln, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
 	if err != nil {
-		t.Fatal(err)
+		fmt.Fprintf(os.Stderr, "listen: %v\n", err)
+		os.Exit(1)
 	}
 	defer ln.Close()
+
+	go func() {
+		for {
+			conn, err := ln.Accept()
+			if err != nil {
+				return
+			}
+			_ = conn.Close()
+		}
+	}()
 
 	select {}
 }
@@ -46,8 +59,8 @@ func startListenerProcess(t *testing.T) int {
 		t.Fatal(err)
 	}
 
-	cmd := exec.Command(os.Args[0], "-test.run=^TestHoldPortHelper$", "-test.count=1")
-	cmd.Env = append(os.Environ(), "EGGL_KILL_TEST_PORT="+strconv.Itoa(port))
+	cmd := exec.Command(os.Args[0], "-test.paniconexit0")
+	cmd.Env = append(os.Environ(), "EGGL_HOLD_PORT="+strconv.Itoa(port))
 	if err := cmd.Start(); err != nil {
 		t.Fatal(err)
 	}

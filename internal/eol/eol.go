@@ -11,8 +11,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/Robert27/eggl-cli/internal/git"
-	"github.com/Robert27/eggl-cli/internal/ui"
+	"github.com/roberteggl/eggl-cli/internal/git"
+	"github.com/roberteggl/eggl-cli/internal/ui"
 )
 
 // MaxFileSize is the largest regular file eol will read (50 MiB).

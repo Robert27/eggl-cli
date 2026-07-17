@@ -5,7 +5,7 @@ import (
 	"log/slog"
 	"strconv"
 
-	"github.com/Robert27/eggl-cli/internal/kill"
+	"github.com/roberteggl/eggl-cli/internal/kill"
 	"github.com/spf13/cobra"
 )
 

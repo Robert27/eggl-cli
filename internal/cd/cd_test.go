@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Robert27/eggl-cli/internal/config"
+	"github.com/roberteggl/eggl-cli/internal/config"
 )
 
 func TestResolve(t *testing.T) {
