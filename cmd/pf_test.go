@@ -18,6 +18,8 @@ func TestPFHelp(t *testing.T) {
 		"Port-forward configured Kubernetes services",
 		"list         List configured port-forwards",
 		"--config",
+		"--open",
+		"-o",
 	} {
 		if !strings.Contains(output, want) {
 			t.Fatalf("expected %q in pf help, got %q", want, output)

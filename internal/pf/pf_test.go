@@ -68,6 +68,9 @@ func TestDefaultOptions(t *testing.T) {
 	if opts.Kube == nil {
 		t.Fatal("expected Kube runner")
 	}
+	if opts.ReadyWait == nil {
+		t.Fatal("expected ReadyWait")
+	}
 }
 
 func TestListNil(t *testing.T) {
@@ -237,5 +240,60 @@ func TestRunStderrMessage(t *testing.T) {
 	<-done
 	if !strings.Contains(msg, "port-forward grafana") || !strings.Contains(msg, "localhost:3000") {
 		t.Fatalf("stderr = %q", msg)
+	}
+}
+
+func TestRunOpen(t *testing.T) {
+	path := testConfig(t)
+	k := &recordingKube{}
+	var opened string
+	opts := Options{
+		ConfigPath: path,
+		Kube:       k,
+		Open:       true,
+		OpenURL: func(url string) error {
+			opened = url
+			return nil
+		},
+		ReadyWait: func(context.Context, string) error { return nil },
+	}
+
+	if err := Run(context.Background(), "grafana", opts); err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if opened != "http://localhost:3000" {
+		t.Fatalf("opened = %q, want http://localhost:3000", opened)
+	}
+	want := []string{"-n", "monitoring", "svc/grafana", "3000:3000"}
+	if strings.Join(k.args, " ") != strings.Join(want, " ") {
+		t.Fatalf("args = %v, want %v", k.args, want)
+	}
+}
+
+func TestRunOpenPortForwardFailsBeforeReady(t *testing.T) {
+	path := testConfig(t)
+	opts := Options{
+		ConfigPath: path,
+		Kube:       &errKube{},
+		Open:       true,
+		OpenURL:    func(string) error { return nil },
+		ReadyWait:  waitForLocalPort,
+	}
+
+	err := Run(context.Background(), "grafana", opts)
+	if err == nil || !strings.Contains(err.Error(), "port-forward failed") {
+		t.Fatalf("Run() error = %v", err)
+	}
+}
+
+func TestWaitUntilReadyPortForwardFails(t *testing.T) {
+	errCh := make(chan error, 1)
+	errCh <- errors.New("port-forward failed")
+
+	err := waitUntilReady(context.Background(), "3000", errCh, func(context.Context, string) error {
+		return nil
+	})
+	if err == nil || !strings.Contains(err.Error(), "port-forward failed") {
+		t.Fatalf("waitUntilReady() error = %v", err)
 	}
 }

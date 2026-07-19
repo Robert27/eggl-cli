@@ -11,20 +11,24 @@ import (
 )
 
 var pfConfigPath string
+var pfOpen bool
 
 var pfCmd = &cobra.Command{
 	Use:   "pf [service]",
 	Short: "Port-forward configured Kubernetes services",
 	Long:  "Named port-forwards in ~/.config/eggl/config.yaml. Uses the active kubectl context.",
 	Example: `  eggl pf list
-  eggl pf longhorn`,
+  eggl pf longhorn
+  eggl pf -o grafana`,
 	Args: cobra.MaximumNArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		if len(args) == 0 {
 			return cmd.Help()
 		}
-		slog.Debug("running pf", "service", args[0], "config", pfConfigPath)
-		return pf.Run(cmd.Context(), args[0], pf.DefaultOptions(pfConfigPath))
+		slog.Debug("running pf", "service", args[0], "config", pfConfigPath, "open", pfOpen)
+		opts := pf.DefaultOptions(pfConfigPath)
+		opts.Open = pfOpen
+		return pf.Run(cmd.Context(), args[0], opts)
 	},
 	SilenceUsage: true,
 }
@@ -78,6 +82,7 @@ func pfComplete(cmd *cobra.Command, args []string, toComplete string) ([]string,
 
 func init() {
 	pfCmd.PersistentFlags().StringVar(&pfConfigPath, "config", "", "Path to config file")
+	pfCmd.PersistentFlags().BoolVarP(&pfOpen, "open", "o", false, "Open http://localhost:<port> in the default browser after the tunnel is ready")
 	pfCmd.ValidArgsFunction = pfComplete
 
 	pfCmd.AddCommand(pfListCmd)
