@@ -29,6 +29,27 @@ func (r *recordingKube) PortForward(_ context.Context, args []string) error {
 	return nil
 }
 
+type blockingKube struct {
+	args    []string
+	started chan<- struct{}
+	done    <-chan struct{}
+}
+
+func (r *blockingKube) CurrentContext(context.Context) (string, error) {
+	return "", nil
+}
+
+func (r *blockingKube) UseContext(context.Context, string) error {
+	return nil
+}
+
+func (r *blockingKube) PortForward(_ context.Context, args []string) error {
+	r.args = append([]string(nil), args...)
+	close(r.started)
+	<-r.done
+	return nil
+}
+
 type errKube struct{}
 
 func (e *errKube) CurrentContext(context.Context) (string, error) { return "", nil }
@@ -245,7 +266,9 @@ func TestRunStderrMessage(t *testing.T) {
 
 func TestRunOpen(t *testing.T) {
 	path := testConfig(t)
-	k := &recordingKube{}
+	started := make(chan struct{})
+	done := make(chan struct{})
+	k := &blockingKube{started: started, done: done}
 	var opened string
 	opts := Options{
 		ConfigPath: path,
@@ -253,9 +276,13 @@ func TestRunOpen(t *testing.T) {
 		Open:       true,
 		OpenURL: func(url string) error {
 			opened = url
+			close(done)
 			return nil
 		},
-		ReadyWait: func(context.Context, string) error { return nil },
+		ReadyWait: func(context.Context, string) error {
+			<-started
+			return nil
+		},
 	}
 
 	if err := Run(context.Background(), "grafana", opts); err != nil {

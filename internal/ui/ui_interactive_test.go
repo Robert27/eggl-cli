@@ -109,11 +109,12 @@ func TestRenderDoctorInteractive(t *testing.T) {
 	t.Setenv("NO_COLOR", "")
 
 	w, master := openTestTTY(t)
-	RenderDoctor(w, []DoctorCheck{
-		{Name: "go", Status: "ok", Detail: "runtime", OK: true},
+	got := renderPTY(t, master, w, func(out io.Writer) {
+		RenderDoctor(out, []DoctorCheck{
+			{Name: "go", Status: "ok", Detail: "runtime", OK: true},
+		})
 	})
 
-	got := readPTY(t, master)
 	for _, want := range []string{"eggl doctor", "go", "All checks passed"} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("expected %q in styled doctor output, got %q", want, got)
