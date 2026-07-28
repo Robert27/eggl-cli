@@ -3,11 +3,13 @@ package ui
 import (
 	"bufio"
 	"fmt"
+	"image/color"
 	"io"
 	"os"
 	"strings"
 
-	"github.com/charmbracelet/lipgloss"
+	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/colorprofile"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"golang.org/x/term"
@@ -18,11 +20,11 @@ const appName = "eggl"
 type Theme struct {
 	enabled bool
 
-	accent     lipgloss.Color
-	success    lipgloss.Color
-	errorColor lipgloss.Color
-	mutedColor lipgloss.Color
-	text       lipgloss.Color
+	accent     color.Color
+	success    color.Color
+	errorColor color.Color
+	mutedColor color.Color
+	text       color.Color
 
 	title    lipgloss.Style
 	subtitle lipgloss.Style
@@ -96,6 +98,13 @@ func NewTheme(w io.Writer) Theme {
 	return t
 }
 
+func (t Theme) output(w io.Writer) io.Writer {
+	if !t.enabled {
+		return w
+	}
+	return colorprofile.NewWriter(w, os.Environ())
+}
+
 func IsInteractive(w io.Writer) bool {
 	if os.Getenv("NO_COLOR") != "" {
 		return false
@@ -138,6 +147,10 @@ func ConfirmPrompt(w io.Writer, in io.Reader, prompt string) (bool, error) {
 
 func RenderHeader(w io.Writer, title, subtitle string) {
 	t := NewTheme(w)
+	renderHeader(t.output(w), t, title, subtitle)
+}
+
+func renderHeader(w io.Writer, t Theme, title, subtitle string) {
 	if !t.enabled {
 		fmt.Fprintf(w, "%s\n", title)
 		if subtitle != "" {
@@ -160,6 +173,7 @@ type VersionInfo struct {
 
 func RenderVersion(w io.Writer, info VersionInfo) {
 	t := NewTheme(w)
+	w = t.output(w)
 	if !t.enabled {
 		fmt.Fprintf(w, "eggl version %s\n", info.Version)
 		fmt.Fprintf(w, "commit: %s\n", info.Commit)
@@ -190,6 +204,7 @@ type DoctorCheck struct {
 
 func RenderDoctor(w io.Writer, checks []DoctorCheck) {
 	t := NewTheme(w)
+	w = t.output(w)
 	if !t.enabled {
 		for _, check := range checks {
 			marker := "ok"
@@ -202,7 +217,7 @@ func RenderDoctor(w io.Writer, checks []DoctorCheck) {
 		return
 	}
 
-	RenderHeader(w, "eggl doctor", "Environment and dependency checks")
+	renderHeader(w, t, "eggl doctor", "Environment and dependency checks")
 
 	rows := make([]string, 0, len(checks))
 	for _, check := range checks {
@@ -242,6 +257,7 @@ type DedashSummary struct {
 
 func RenderDedash(w io.Writer, summary DedashSummary) {
 	t := NewTheme(w)
+	w = t.output(w)
 	line := dedashSummaryLine(summary)
 
 	switch {
@@ -302,6 +318,7 @@ type EOLSummary struct {
 
 func RenderEOL(w io.Writer, summary EOLSummary) {
 	t := NewTheme(w)
+	w = t.output(w)
 	line := eolSummaryLine(summary)
 
 	switch {
@@ -372,6 +389,7 @@ type EnvSwitchResult struct {
 
 func RenderEnvShow(w io.Writer, report EnvShowReport) {
 	t := NewTheme(w)
+	w = t.output(w)
 	if !t.enabled {
 		if report.Unknown {
 			fmt.Fprintf(w, "profile: unknown\n")
@@ -387,7 +405,7 @@ func RenderEnvShow(w io.Writer, report EnvShowReport) {
 		return
 	}
 
-	RenderHeader(w, "eggl env", "Environment profile status")
+	renderHeader(w, t, "eggl env", "Environment profile status")
 
 	profileVal := report.ActiveProfile
 	if report.Unknown {
@@ -414,6 +432,7 @@ func RenderEnvShow(w io.Writer, report EnvShowReport) {
 
 func RenderEnvSwitch(w io.Writer, result EnvSwitchResult) {
 	t := NewTheme(w)
+	w = t.output(w)
 	if !t.enabled {
 		fmt.Fprintf(w, "profile: %s → %s\n", result.FromProfile, result.ToProfile)
 		fmt.Fprintf(w, "kube: %s → %s\n", result.FromKube, result.ToKube)
@@ -421,7 +440,7 @@ func RenderEnvSwitch(w io.Writer, result EnvSwitchResult) {
 		return
 	}
 
-	RenderHeader(w, "eggl env", "Switched environment profile")
+	renderHeader(w, t, "eggl env", "Switched environment profile")
 	lines := []string{
 		renderKV(t, "profile", fmt.Sprintf("%s → %s", emptyDash(result.FromProfile), result.ToProfile)),
 		renderKV(t, "kube", fmt.Sprintf("%s → %s", result.FromKube, result.ToKube)),
@@ -469,6 +488,7 @@ type HelpCommand struct {
 
 func RenderHelp(w io.Writer, summary, description string, commands []HelpCommand, globalFlags *pflag.FlagSet) {
 	t := NewTheme(w)
+	w = t.output(w)
 	sections := helpSectionsForCommands(commands, globalFlags)
 	if description != "" {
 		lines := strings.Split(description, "\n")
@@ -484,13 +504,14 @@ func RenderHelp(w io.Writer, summary, description string, commands []HelpCommand
 		return
 	}
 
-	RenderHeader(w, appName, summary)
+	renderHeader(w, t, appName, summary)
 	writeHelpSectionsStyled(w, t, sections)
 	fmt.Fprintln(w, t.muted.Render("Tip: run `eggl <command> --help` for details"))
 }
 
 func RenderCommandHelp(w io.Writer, cmd *cobra.Command) {
 	t := NewTheme(w)
+	w = t.output(w)
 	title := cmd.CommandPath()
 	subtitle := commandSubtitle(cmd)
 	sections := helpSectionsForCommand(cmd)
@@ -501,7 +522,7 @@ func RenderCommandHelp(w io.Writer, cmd *cobra.Command) {
 		return
 	}
 
-	RenderHeader(w, title, subtitle)
+	renderHeader(w, t, title, subtitle)
 	writeHelpSectionsStyled(w, t, sections)
 }
 
