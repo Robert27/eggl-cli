@@ -1,0 +1,35 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended",
+    "helpers:pinGitHubActionDigests"
+  ],
+  "dependencyDashboard": true,
+  "semanticCommits": "enabled",
+  "semanticCommitType": "chore",
+  "semanticCommitScope": "deps",
+  "packageRules": [
+    {
+      "description": "Group non-breaking dependency updates",
+      "groupName": "minor and patch dependencies",
+      "matchUpdateTypes": [
+        "minor",
+        "patch"
+      ]
+    },
+    {
+      "description": "Keep breaking dependency updates visible",
+      "groupName": "major dependencies",
+      "matchUpdateTypes": [
+        "major"
+      ]
+    },
+    {
+      "description": "Use CI commits for GitHub Actions updates",
+      "matchManagers": [
+        "github-actions"
+      ],
+      "semanticCommitType": "ci"
+    }
+  ]
+}
