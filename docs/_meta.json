@@ -1,0 +1,41 @@
+[
+  {
+    "type": "section-header",
+    "label": "Getting started"
+  },
+  "install",
+  "quickstart",
+  "completion",
+  {
+    "type": "divider"
+  },
+  {
+    "type": "section-header",
+    "label": "Configuration"
+  },
+  {
+    "type": "dir",
+    "name": "configuration",
+    "label": "Configuration"
+  },
+  {
+    "type": "section-header",
+    "label": "Commands"
+  },
+  {
+    "type": "dir",
+    "name": "commands",
+    "label": "Command reference"
+  },
+  {
+    "type": "divider"
+  },
+  {
+    "type": "section-header",
+    "label": "Reference"
+  },
+  "workflows",
+  "troubleshooting",
+  "development",
+  "releasing"
+]
