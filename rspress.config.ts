@@ -4,11 +4,11 @@ import mermaid from "rspress-plugin-mermaid";
 
 const config: UserConfig = {
   root: path.join(__dirname, "docs"),
-  title: "eggl CLI",
+  title: "eggl-cli",
   description:
-    "eggl CLI is a small command-line toolkit for development, Kubernetes, and everyday workflows.",
+    "eggl-cli is a small command-line toolkit for development, Kubernetes, and everyday workflows.",
   icon: "/favicon.svg",
-  logoText: "eggl CLI",
+  logoText: "eggl-cli",
   base: "/",
   lang: "en",
   head: [

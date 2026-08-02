@@ -1,10 +1,10 @@
 ---
 pageType: home
-title: eggl CLI
+title: eggl-cli
 titleSuffix: Small tools for the edges of your workflow
 hero:
   badge: Go / terminal / workflow
-  name: eggl CLI
+  name: eggl-cli
   text: Small tools for the edges of your workflow
   tagline: A practical helper CLI for switching environments, opening Kubernetes tunnels, cleaning repository text, and taking care of the local tasks around development.
   actions:
@@ -33,13 +33,13 @@ features:
     span: 6
 ---
 
-## What eggl CLI does
+## What eggl-cli does
 
-eggl CLI is intentionally small. It connects the local tools that sit between a terminal, a Kubernetes cluster, and a working repository without trying to replace any of them.
+eggl-cli is intentionally small. It connects the local tools that sit between a terminal, a Kubernetes cluster, and a working repository without trying to replace any of them.
 
 ```mermaid
 flowchart LR
-  terminal[Terminal] --> eggl[eggl CLI]
+  terminal[Terminal] --> eggl[eggl-cli]
   eggl --> environment[kubectl + Tailscale]
   eggl --> cluster[Kubernetes services]
   eggl --> repository[Git repository]
@@ -48,6 +48,6 @@ flowchart LR
 
 ## Start here
 
-- [Install eggl CLI](/install)
+- [Install eggl-cli](/install)
 - [Configure your first profile](/quickstart)
 - [Read the command reference](/commands)

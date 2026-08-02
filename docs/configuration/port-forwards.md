@@ -15,7 +15,7 @@ port_forwards:
 
 `resource` accepts Kubernetes kinds such as `svc`, `service`, `deployment`, `pod`, `statefulset`, `daemonset`, `job`, and `cronjob`.
 
-If `ports` is omitted, eggl CLI uses `8080:80`.
+If `ports` is omitted, eggl-cli uses `8080:80`.
 
 ## List forwards
 

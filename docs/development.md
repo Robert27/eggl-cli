@@ -1,6 +1,6 @@
 # Development
 
-eggl CLI keeps command orchestration separate from domain behavior.
+eggl-cli keeps command orchestration separate from domain behavior.
 
 ```mermaid
 flowchart TB

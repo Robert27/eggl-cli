@@ -16,4 +16,4 @@ eggl kill --yes --force 8080
 | `-y, --yes` | Skip the confirmation prompt |
 | `-f, --force` | Send `SIGKILL` instead of `SIGTERM` |
 
-Use `--dry-run` before `--force` when investigating a stale port-forward or development server. Without `--force`, eggl CLI requests graceful termination.
+Use `--dry-run` before `--force` when investigating a stale port-forward or development server. Without `--force`, eggl-cli requests graceful termination.

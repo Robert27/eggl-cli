@@ -42,4 +42,4 @@ Use the starter file as a safe baseline:
 eggl env init
 ```
 
-eggl CLI refuses to overwrite an existing file.
+eggl-cli refuses to overwrite an existing file.

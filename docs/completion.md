@@ -1,6 +1,6 @@
 # Shell Completion
 
-eggl CLI generates completion scripts for Bash, Zsh, Fish, and PowerShell.
+eggl-cli generates completion scripts for Bash, Zsh, Fish, and PowerShell.
 
 ## Bash
 

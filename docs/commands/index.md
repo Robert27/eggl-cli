@@ -1,6 +1,6 @@
 # Command Reference
 
-Run `eggl --help` for the top-level list or `eggl <command> --help` for the flags and examples for a command. The executable is `eggl`; the product is eggl CLI.
+Run `eggl --help` for the top-level list or `eggl <command> --help` for the flags and examples for a command. The executable is `eggl`; the product is eggl-cli.
 
 | Command | Purpose | External dependency |
 | --- | --- | --- |
@@ -15,7 +15,7 @@ Run `eggl --help` for the top-level list or `eggl <command> --help` for the flag
 | `version` | Print build information | None |
 | `completion` | Generate shell completion scripts | None |
 
-All eggl CLI commands support the global `--verbose` flag. It sends operation details to stderr. Set `NO_COLOR` to disable interactive styling.
+All eggl-cli commands support the global `--verbose` flag. It sends operation details to stderr. Set `NO_COLOR` to disable interactive styling.
 
 ## Command groups
 

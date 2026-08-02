@@ -1,6 +1,6 @@
 # Configuration
 
-eggl CLI keeps profiles, port-forwards, and directory aliases in one YAML file.
+eggl-cli keeps profiles, port-forwards, and directory aliases in one YAML file.
 
 The default path is:
 
@@ -8,7 +8,7 @@ The default path is:
 ~/.config/eggl/config.yaml
 ```
 
-When `XDG_CONFIG_HOME` is set, eggl CLI uses `$XDG_CONFIG_HOME/eggl/config.yaml` instead. Every configuration-aware command also accepts `--config` to use a different file.
+When `XDG_CONFIG_HOME` is set, eggl-cli uses `$XDG_CONFIG_HOME/eggl/config.yaml` instead. Every configuration-aware command also accepts `--config` to use a different file.
 
 ```bash
 eggl env --config ./eggl.yaml show

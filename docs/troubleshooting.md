@@ -41,7 +41,7 @@ eggl env use homelab
 
 ## A config file is rejected
 
-Check the path and parse it through an eggl CLI command:
+Check the path and parse it through an eggl-cli command:
 
 ```bash
 eggl env path

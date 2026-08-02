@@ -9,14 +9,14 @@ export function HeroEgglGraphic() {
       >
         <title id="eggl-graphic-title">eggl terminal session</title>
         <desc id="eggl-graphic-description">
-          A simulated terminal session showing eggl CLI checking an environment, switching profiles, and starting a port-forward.
+          A simulated terminal session showing eggl-cli checking an environment, switching profiles, and starting a port-forward.
         </desc>
         <rect x="12" y="12" width="536" height="356" rx="16" fill="#17191c" />
         <rect x="12" y="12" width="536" height="44" rx="16" fill="var(--eggl-ink)" />
         <circle cx="38" cy="34" r="5" fill="#ef4444" />
         <circle cx="56" cy="34" r="5" fill="#f59e0b" />
         <circle cx="74" cy="34" r="5" fill="#22c55e" />
-        <text x="100" y="39" fill="#c6cbc8" fontSize="13" className="eggl-hero-graphic__mono">eggl CLI / terminal session</text>
+        <text x="100" y="39" fill="#c6cbc8" fontSize="13" className="eggl-hero-graphic__mono">eggl-cli / terminal session</text>
 
         <rect x="28" y="70" width="504" height="264" rx="8" fill="#101214" />
         <path d="M72 82v240" stroke="#ffffff18" />
