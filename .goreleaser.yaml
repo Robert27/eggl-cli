@@ -56,7 +56,7 @@ brews:
       name: homebrew-tap
       branch: main
       token: "{{ .Env.TAP_GITHUB_TOKEN }}"
-    homepage: "https://github.com/roberteggl/eggl-cli"
+    homepage: "https://cli.eggl.dev"
     description: "General-purpose helper CLI"
     license: "MIT"
     commit_author:

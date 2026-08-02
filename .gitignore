@@ -1,6 +1,8 @@
 # Build output
 /bin/
 /dist/
+/doc_build/
+node_modules/
 eggl
 eggl-*
 

@@ -1,4 +1,4 @@
-# eggl-cli
+# eggl CLI
 
 [![Release](https://img.shields.io/github/v/release/roberteggl/eggl-cli?style=flat-square)](https://github.com/roberteggl/eggl-cli/releases)
 [![CI](https://github.com/roberteggl/eggl-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/roberteggl/eggl-cli/actions/workflows/ci.yml)
@@ -6,7 +6,7 @@
 [![Go](https://img.shields.io/github/go-mod/go-version/roberteggl/eggl-cli?style=flat-square)](https://go.dev/)
 [![License](https://img.shields.io/github/license/roberteggl/eggl-cli?style=flat-square)](LICENSE)
 
-A general-purpose helper CLI built with Go and [Cobra](https://github.com/spf13/cobra).
+eggl CLI is a general-purpose helper built with Go and [Cobra](https://github.com/spf13/cobra).
 
 ## Install
 
@@ -133,3 +133,5 @@ eggl completion fish > ~/.config/fish/completions/eggl.fish
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, project layout, and release instructions.
+
+Built by [Robert Eggl](https://eggl.dev).
