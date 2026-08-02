@@ -65,7 +65,3 @@ brews:
     commit_msg_template: "chore: update {{ .ProjectName }} to {{ .Tag }}"
     extra_install: |
       generate_completions_from_executable(bin/"eggl", shells: [:bash, :zsh, :fish], shell_parameter_format: :cobra)
-    post_install: |
-      if OS.mac?
-        system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{bin}/eggl"], sudo: false
-      end
