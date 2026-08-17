@@ -11,6 +11,7 @@
   "devDependencies": {
     "@rspress/core": "2.0.19",
     "@types/node": "24.13.3",
+    "mermaid": "^10.9.8",
     "rspress-plugin-mermaid": "1.0.1",
     "typescript": "7.0.2"
   },
